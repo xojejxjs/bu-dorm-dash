@@ -37,14 +37,25 @@ function addDormMarkers(dorms) {
   });
 }
 
-// 把所有教学楼画到地图上（逻辑和上面一样，只是颜色不同）
+// 每种地点类型对应的颜色（key 就是 data.json 里的 type）
+// 紫色而不是绿色：绿色已经用在路线的 🟢 结论上，避免混淆
+const TYPE_COLORS = {
+  academic: '#1f6feb',   // 教学楼：蓝色
+  recreation: '#8e44ad'  // 健身 / 娱乐：紫色
+};
+const DEFAULT_TYPE_COLOR = '#666666'; // data.json 里出现没定义过的 type 时用灰色
+
+// 把所有教学楼画到地图上（逻辑和宿舍一样，颜色按 type 决定）
 function addBuildingMarkers(buildings) {
   buildings.forEach(function (building) {
+    // 查表：type 是 'recreation' 就取紫色；表里没有这个 type，就用默认灰色
+    const fillColor = TYPE_COLORS[building.type] || DEFAULT_TYPE_COLOR;
+
     L.circleMarker([building.latitude, building.longitude], {
       radius: 7,
       color: 'white',
       weight: 2,
-      fillColor: '#1f6feb', // 教学楼：蓝色
+      fillColor: fillColor,
       fillOpacity: 0.9
     })
       .bindTooltip(building.name)
@@ -96,5 +107,25 @@ function clearRouteLine() {
 function focusPlace(place) {
   map.flyTo([place.latitude, place.longitude], 17);
 }
+
+// 在地图右下角加一个图例，说明每种颜色代表什么
+function addLegend() {
+  const legend = L.control({ position: 'bottomright' });
+
+  // Leaflet 把图例放到地图上时，会调用 onAdd，要求返回一个 HTML 元素
+  legend.onAdd = function () {
+    const box = L.DomUtil.create('div', 'map-legend');
+    box.innerHTML = `
+      <div><span class="legend-dot" style="background:#cc0000"></span>Dorm</div>
+      <div><span class="legend-dot" style="background:${TYPE_COLORS.academic}"></span>Academic</div>
+      <div><span class="legend-dot" style="background:${TYPE_COLORS.recreation}"></span>Recreation</div>
+    `;
+    return box;
+  };
+
+  legend.addTo(map);
+}
+
+addLegend();
 
 console.log('map.js loaded');

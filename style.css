@@ -111,15 +111,19 @@ main {
   margin-bottom: 10px;
 }
 
-/* 排名项：看起来可以点击 */
+/* 排名项：做成卡片，一眼看出可以点击 */
 .rank-item {
-  padding: 6px 8px;
-  border-radius: 6px;
+  padding: 8px 10px;
+  border: 1px solid #e2e2e2;
+  border-radius: 8px;
+  background: white;
   cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .rank-item:hover {
-  background: #f2f2f2;
+  border-color: #cc0000;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
 .rank-detail {
@@ -136,4 +140,49 @@ main {
 #map {
   flex: 1;
   height: 100%;
+}
+
+/* 地图右下角的图例 */
+.map-legend {
+  background: white;
+  padding: 8px 10px;
+  border-radius: 6px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+/* ===== 手机布局：屏幕宽度 ≤ 768px 时，下面这些规则才生效 ===== */
+@media (max-width: 768px) {
+  header h1 {
+    font-size: 16px;
+  }
+
+  /* 左右并排 → 上下排列 */
+  main {
+    flex-direction: column;
+  }
+
+  /* 地图放到最上面，固定占屏幕高度的 45% */
+  #map {
+    order: -1;
+    flex: none;
+    height: 45vh;
+  }
+
+  /* 侧边栏占满宽度，占据剩下的高度，内容多了在里面滚动 */
+  #sidebar {
+    width: 100%;
+    flex: 1;
+    border-right: none;
+    border-top: 1px solid #ddd;
+  }
 }

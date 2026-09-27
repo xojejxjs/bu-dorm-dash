@@ -280,6 +280,9 @@ async function main() {
     const dorm = findPlaceById(data.dorms, item.dataset.dormId);
     showDormInfo(dorm);
     focusPlace(dorm);
+
+    // Dorm info 在侧边栏顶部；滚动过去，让用户看到信息已经更新
+    document.getElementById('dorm-panel').scrollIntoView({ behavior: 'smooth' });
   });
 }
 

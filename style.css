@@ -1,0 +1,108 @@
+/* 让 html 和 body 占满整个浏览器窗口高度，
+   否则 #map 的高度百分比会没有参照物，地图可能显示不出来 */
+html, body {
+  height: 100%;
+  margin: 0;
+  font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* 整个页面：上面是标题，下面是 main，main 占满剩余高度 */
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  padding: 12px 16px;
+  background: #cc0000; /* BU 红 */
+  color: white;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 20px;
+}
+
+/* main：左边 sidebar，右边地图，左右并排 */
+main {
+  flex: 1;
+  display: flex;
+  min-height: 0; /* 让子元素可以内部滚动，而不是撑破页面 */
+}
+
+#sidebar {
+  width: 340px;
+  padding: 16px;
+  overflow-y: auto; /* 内容多了可以滚动 */
+  border-right: 1px solid #ddd;
+  box-sizing: border-box;
+}
+
+#sidebar h2 {
+  font-size: 16px;
+  margin: 0 0 8px;
+}
+
+#sidebar section {
+  margin-bottom: 24px;
+}
+
+#dorm-info h3 {
+  margin: 0 0 8px;
+  color: #cc0000;
+}
+
+#dorm-info p {
+  font-size: 14px;
+  margin: 6px 0;
+}
+
+/* 图片宽度不超过侧边栏 */
+#dorm-info img {
+  width: 100%;
+  border-radius: 6px;
+}
+
+/* 路线选择：标签和下拉框各占一行 */
+#route-panel label {
+  display: block;
+  font-size: 13px;
+  color: #555;
+  margin: 10px 0 4px;
+}
+
+#route-panel select,
+#route-panel input {
+  width: 100%;
+  padding: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+}
+
+#route-result {
+  margin-top: 12px;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #f5f5f5;
+}
+
+#route-result p {
+  margin: 4px 0;
+}
+
+/* 三种结论的背景色 */
+#route-result.verdict-green  { background: #e6f4ea; }
+#route-result.verdict-yellow { background: #fff4d6; }
+#route-result.verdict-red    { background: #fde8e8; }
+
+.placeholder {
+  color: #999;
+  font-size: 14px;
+}
+
+/* 地图占据 main 剩下的全部宽度 */
+#map {
+  flex: 1;
+  height: 100%;
+}

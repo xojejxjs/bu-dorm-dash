@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <!-- 让页面在手机上按设备宽度显示，而不是缩成一小块 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BU Housing & Campus Decision Tool</title>
+
+  <!-- Leaflet 的样式文件，必须引入，否则地图显示会错乱 -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <header>
+    <h1>BU Housing & Campus Decision Tool</h1>
+  </header>
+
+  <main>
+    <!-- 左侧：用户操作 + 结果 -->
+    <aside id="sidebar">
+
+      <!-- 区域 0：宿舍详情（Step 5：点击地图上的宿舍后，JS 往里面写内容） -->
+      <section id="dorm-panel">
+        <h2>Dorm info</h2>
+        <div id="dorm-info">
+          <p class="placeholder">Click a red dot on the map to see dorm details.</p>
+        </div>
+      </section>
+
+      <!-- 区域 1：路线选择（选项由 JS 根据 data.json 生成） -->
+      <section id="route-panel">
+        <h2>Route check</h2>
+
+        <label for="from-select">From</label>
+        <select id="from-select"></select>
+
+        <label for="to-select">To</label>
+        <select id="to-select"></select>
+
+        <label for="gap-input">Minutes between classes</label>
+        <input type="number" id="gap-input" value="15" min="1">
+
+        <!-- Step 8：计算结果显示在这里 -->
+        <div id="route-result">
+          <p class="placeholder">Choose a starting point and a destination to see the walking time.</p>
+        </div>
+      </section>
+
+      <!-- 区域 2：宿舍比较结果（Step 10 会用 JS 往里面放卡片） -->
+      <section id="results-panel">
+        <h2>Dorm comparison</h2>
+        <div id="results">
+          <p class="placeholder">Dorm rankings will appear here.</p>
+        </div>
+      </section>
+
+    </aside>
+
+    <!-- 右侧：地图容器。id="map" 是 Leaflet 用来找到它的钩子 -->
+    <div id="map"></div>
+  </main>
+
+  <!-- 先加载 Leaflet 库，后面的代码才能使用 L -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- 我们自己的 JS，顺序很重要：被别人用的文件要先加载 -->
+  <script src="distance.js"></script>
+  <script src="map.js"></script>
+  <script src="app.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,62 @@
+{
+  "dorms": [
+    {
+      "id": "warren",
+      "name": "Warren Towers",
+      "address": "700 Commonwealth Ave",
+      "latitude": 42.34939,
+      "longitude": -71.10403,
+      "description": "Large first-year residence hall on Commonwealth Avenue with an on-site dining hall.",
+      "room_types": ["Single", "Double", "Triple"],
+      "image_url": "",
+      "floor_plan_url": "",
+      "tour_360_url": ""
+    },
+    {
+      "id": "myles",
+      "name": "Myles Standish Hall",
+      "address": "610 Beacon St",
+      "latitude": 42.3489,
+      "longitude": -71.0962,
+      "description": "Historic residence hall in Kenmore Square.",
+      "room_types": ["Single", "Double"],
+      "image_url": "",
+      "floor_plan_url": "",
+      "tour_360_url": ""
+    }
+  ],
+  "buildings": [
+    {
+      "id": "cds",
+      "name": "Faculty of Computing & Data Sciences (CDS)",
+      "address": "665 Commonwealth Ave",
+      "latitude": 42.3500,
+      "longitude": -71.1033,
+      "type": "academic"
+    },
+    {
+      "id": "cas",
+      "name": "College of Arts & Sciences (CAS)",
+      "address": "725 Commonwealth Ave",
+      "latitude": 42.35011,
+      "longitude": -71.10434,
+      "type": "academic"
+    },
+    {
+      "id": "questrom",
+      "name": "Questrom School of Business",
+      "address": "595 Commonwealth Ave",
+      "latitude": 42.349665919765364,
+      "longitude": -71.09971063584074,
+      "type": "academic"
+    },
+    {
+      "id": "fitrec",
+      "name": "Fitness & Recreation Center (FitRec)",
+      "address": "915 Commonwealth Ave",
+      "latitude": 42.35160368217584,
+      "longitude": -71.11635565259625,
+     "type": "recreation"
+    }
+  ]
+}

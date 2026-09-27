@@ -85,15 +85,24 @@ function findPlaceById(places, id) {
 
 const BUFFER_MINUTES = 3; // 缓冲时间：下课拖堂、收拾东西、找教室
 
-// 计算 A → B 的距离和步行时间，并判断来不来得及
-// 输入：起点对象、终点对象、课间分钟数
-// 输出：一个结果对象 { meters, minutes, verdict }
-function checkRoute(fromPlace, toPlace, gapMinutes) {
+// 计算两个地点之间的距离和步行时间（Step 8 和 Step 9 共用）
+// 输入：起点对象、终点对象
+// 输出：{ meters, minutes }
+function measureRoute(fromPlace, toPlace) {
   const meters = getDistance(
     fromPlace.latitude, fromPlace.longitude,
     toPlace.latitude, toPlace.longitude
   );
-  const minutes = getWalkMinutes(meters);
+  return { meters: meters, minutes: getWalkMinutes(meters) };
+}
+
+// 计算 A → B 的距离和步行时间，并判断来不来得及
+// 输入：起点对象、终点对象、课间分钟数
+// 输出：一个结果对象 { meters, minutes, verdict }
+function checkRoute(fromPlace, toPlace, gapMinutes) {
+  const route = measureRoute(fromPlace, toPlace);
+  const meters = route.meters;
+  const minutes = route.minutes;
 
   let verdict;
   if (minutes + BUFFER_MINUTES <= gapMinutes) {
@@ -163,6 +172,70 @@ function updateRoute(places) {
   showRouteResult(result, fromPlace, toPlace, gapMinutes);
 }
 
+// 生成"排名依据"下拉框的选项：只列出教学楼（包括 FitRec）
+// 输入：buildings 数组
+// 输出：<option> 的 HTML 字符串
+function buildBuildingOptions(buildings) {
+  let html = '<option value="">-- Select a building --</option>';
+  buildings.forEach(function (building) {
+    html += `<option value="${building.id}">${building.name}</option>`;
+  });
+  return html;
+}
+
+// 计算每个宿舍到某栋楼的步行时间，并从近到远排序
+// 输入：dorms 数组、一个 building 对象
+// 输出：排好序的新数组，每一项是 { dorm, meters, minutes }
+function rankDorms(dorms, building) {
+  // map：把"宿舍数组"变成"宿舍 + 距离"的数组，一一对应
+  const ranked = dorms.map(function (dorm) {
+    const route = measureRoute(dorm, building);
+    return { dorm: dorm, meters: route.meters, minutes: route.minutes };
+  });
+
+  // sort：按 minutes 从小到大排列
+  ranked.sort(function (a, b) {
+    return a.minutes - b.minutes;
+  });
+
+  return ranked;
+}
+
+// 把排名显示到 #results
+// 输入：rankDorms 的结果、目标 building 对象
+function showDormRanking(ranked, building) {
+  let html = `<p><strong>Walking time to ${building.name}</strong></p><ol>`;
+
+  ranked.forEach(function (item) {
+    html += `
+      <li>
+        <strong>${item.dorm.name}</strong><br>
+        <span class="rank-detail">${formatDistance(item.meters)}, ~${Math.ceil(item.minutes)} min walk</span>
+      </li>
+    `;
+  });
+
+  html += '</ol>';
+  document.getElementById('results').innerHTML = html;
+}
+
+// 读取排名下拉框 → 计算 → 显示
+// 输入：dorms 数组、buildings 数组
+function updateRanking(dorms, buildings) {
+  const buildingId = document.getElementById('rank-select').value;
+
+  if (buildingId === '') {
+    document.getElementById('results').innerHTML =
+      '<p class="placeholder">Choose a building to rank the dorms.</p>';
+    return;
+  }
+
+  const building = findPlaceById(buildings, buildingId);
+  const ranked = rankDorms(dorms, building);
+  console.log('Dorm ranking:', ranked);
+  showDormRanking(ranked, building);
+}
+
 // 程序入口：页面加载后从这里开始执行
 async function main() {
   const data = await loadData();
@@ -180,6 +253,12 @@ async function main() {
   // 监听路线区域：下拉框改选、输入框打字，都会触发 'input' 事件
   document.getElementById('route-panel').addEventListener('input', function () {
     updateRoute(places);
+  });
+
+  // 生成"排名依据"下拉框，并监听它的变化
+  document.getElementById('rank-select').innerHTML = buildBuildingOptions(data.buildings);
+  document.getElementById('rank-select').addEventListener('input', function () {
+    updateRanking(data.dorms, data.buildings);
   });
 }
 

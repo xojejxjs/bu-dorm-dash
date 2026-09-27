@@ -52,4 +52,49 @@ function addBuildingMarkers(buildings) {
   });
 }
 
+// 当前画在地图上的路线。一次只保留一条，所以用一个变量记住它，下次画之前先删掉
+let routeLine = null;
+
+// 在地图上画 A → B 的连线，颜色跟结论一致
+// 输入：起点对象、终点对象、结论（'green' / 'yellow' / 'red'）
+// 输出：地图上出现一条虚线，并缩放到能看到两个点
+function drawRouteLine(fromPlace, toPlace, verdict) {
+  clearRouteLine();
+
+  const lineColors = {
+    green: '#1e8e3e',
+    yellow: '#e8a200',
+    red: '#d93025'
+  };
+
+  routeLine = L.polyline(
+    [
+      [fromPlace.latitude, fromPlace.longitude],
+      [toPlace.latitude, toPlace.longitude]
+    ],
+    {
+      color: lineColors[verdict],
+      weight: 4,
+      dashArray: '8 8' // 虚线：提醒用户这是直线距离，不是真实步行路线
+    }
+  ).addTo(map);
+
+  // 自动缩放，让整条线都在视野里；padding 留出边距，点不会贴着地图边缘
+  map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
+}
+
+// 把地图上的路线删掉（如果有的话）
+function clearRouteLine() {
+  if (routeLine !== null) {
+    map.removeLayer(routeLine);
+    routeLine = null;
+  }
+}
+
+// 让地图平滑地飞到某个地点
+// 输入：一个地点对象（宿舍或教学楼）
+function focusPlace(place) {
+  map.flyTo([place.latitude, place.longitude], 17);
+}
+
 console.log('map.js loaded');

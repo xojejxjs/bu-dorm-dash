@@ -111,6 +111,17 @@ main {
   margin-bottom: 10px;
 }
 
+/* 排名项：看起来可以点击 */
+.rank-item {
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.rank-item:hover {
+  background: #f2f2f2;
+}
+
 .rank-detail {
   color: #555;
   font-size: 13px;

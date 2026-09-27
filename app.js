@@ -151,6 +151,9 @@ function updateRoute(places) {
   const toId = document.getElementById('to-select').value;
   const gapMinutes = Number(document.getElementById('gap-input').value);
 
+  // 先清掉旧的线；如果下面因为输入不完整提前 return，地图上就不会留下过时的线
+  clearRouteLine();
+
   if (fromId === '' || toId === '') {
     showRouteMessage('Choose a starting point and a destination to see the walking time.');
     return;
@@ -170,6 +173,7 @@ function updateRoute(places) {
   const result = checkRoute(fromPlace, toPlace, gapMinutes);
   console.log('Route result:', result);
   showRouteResult(result, fromPlace, toPlace, gapMinutes);
+  drawRouteLine(fromPlace, toPlace, result.verdict);
 }
 
 // 生成"排名依据"下拉框的选项：只列出教学楼（包括 FitRec）
@@ -207,10 +211,12 @@ function showDormRanking(ranked, building) {
   let html = `<p><strong>Walking time to ${building.name}</strong></p><ol>`;
 
   ranked.forEach(function (item) {
+    // data-dorm-id：把宿舍 id 藏在元素上，点击时靠它知道点的是哪个宿舍
     html += `
-      <li>
+      <li class="rank-item" data-dorm-id="${item.dorm.id}">
         <strong>${item.dorm.name}</strong><br>
-        <span class="rank-detail">${formatDistance(item.meters)}, ~${Math.ceil(item.minutes)} min walk</span>
+        <span class="rank-detail">${formatDistance(item.meters)}, ~${Math.ceil(item.minutes)} min walk</span><br>
+        <span class="rank-detail">Room types: ${item.dorm.room_types.join(', ')}</span>
       </li>
     `;
   });
@@ -259,6 +265,21 @@ async function main() {
   document.getElementById('rank-select').innerHTML = buildBuildingOptions(data.buildings);
   document.getElementById('rank-select').addEventListener('input', function () {
     updateRanking(data.dorms, data.buildings);
+  });
+
+  // 点击排名里的宿舍：显示详情 + 地图飞过去
+  // 监听挂在外层 #results 上，因为里面的列表每次排名都会重新生成
+  document.getElementById('results').addEventListener('click', function (event) {
+    // event.target 是实际被点到的元素（可能是名字、距离文字……）
+    // closest 从它开始往外找，找到最近的 .rank-item，也就是整个这一项
+    const item = event.target.closest('.rank-item');
+    if (item === null) {
+      return; // 点到的是标题或空白处，不是某个宿舍
+    }
+
+    const dorm = findPlaceById(data.dorms, item.dataset.dormId);
+    showDormInfo(dorm);
+    focusPlace(dorm);
   });
 }
 

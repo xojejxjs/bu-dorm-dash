@@ -15,6 +15,9 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors' // 使用免费地图要求保留这行版权说明
 }).addTo(map);
 
+// 去掉右下角的 "Leaflet" 前缀，只保留地图数据的版权说明
+map.attributionControl.setPrefix(false);
+
 // 把所有宿舍画到地图上
 // 输入：dorms 数组（来自 data.json）
 // 输出：地图上每个宿舍出现一个红色圆点

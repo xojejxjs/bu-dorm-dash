@@ -153,7 +153,8 @@ function measureRoute(fromPlace, toPlace) {
 function checkRoute(fromPlace, toPlace, gapMinutes) {
   const route = measureRoute(fromPlace, toPlace);
   const meters = route.meters;
-  const minutes = route.minutes;
+  // 先向上取整再判断：页面上显示的分钟数和判断用的分钟数永远是同一个，不会出现"显示 10 分钟却说够 9.5 分钟"
+  const minutes = Math.ceil(route.minutes);
 
   let verdict;
   if (minutes + BUFFER_MINUTES <= gapMinutes) {

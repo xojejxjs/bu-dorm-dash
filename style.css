@@ -142,6 +142,20 @@ main {
   display: none;
 }
 
+/* 侧边栏最下面的数据来源说明 */
+#sources {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+  font-size: 12px;
+  color: #888;
+  line-height: 1.5;
+}
+
+#sources a {
+  color: #888;
+}
+
 .placeholder {
   color: #999;
   font-size: 14px;

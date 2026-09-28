@@ -24,6 +24,13 @@
       <!-- 区域 0：宿舍详情（Step 5：点击地图上的宿舍后，JS 往里面写内容） -->
       <section id="dorm-panel">
         <h2>Dorm info</h2>
+
+        <!-- 搜索框：list 属性把它和下面的 datalist 连起来，打字时会出现候选项 -->
+        <input type="search" id="dorm-search" list="dorm-search-options"
+               placeholder="Search a dorm, e.g. Warren, StuVi, 188 Bay State Road">
+        <datalist id="dorm-search-options"></datalist>
+        <p id="dorm-search-message" class="search-message"></p>
+
         <div id="dorm-info">
           <p class="placeholder">Click a red dot on the map to see dorm details.</p>
         </div>

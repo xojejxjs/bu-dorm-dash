@@ -6,31 +6,33 @@
       "address": "700 Commonwealth Ave",
       "latitude": 42.34939,
       "longitude": -71.10403,
-      "description": "Large first-year residence hall on Commonwealth Avenue with an on-site dining hall.",
-      "room_types": ["Single", "Double", "Triple"],
+      "description": "BU's largest traditional-style hall, made up of three towers in a central spot on Comm Ave. Has its own dining hall (The Fresh Food Co. at Warren Towers), plus laundry, mail services and study rooms.",
+      "room_types": ["Traditional Double", "Traditional Quad", "Traditional Single", "Traditional Triple"],
       "image_url": "",
-      "floor_plan_url": "",
+      "floor_plan_url": "https://www.bu.edu/housing/files/2015/04/Warren-Towers-Typical-Floor-Plan-B.jpg",
       "tour_360_url": "",
-      "official_url": "",
-      "amenities": [],
+      "official_url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/warren-towers/",
+      "amenities": ["Laundry Facility", "Music Room", "Study Lounge", "Game Room", "Bike Storage"],
       "units": ["Warren Tower A - Fairfield", "Warren Tower C - Shields"],
-      "addresses": []
+      "addresses": [],
+      "aliases": []
     },
     {
       "id": "myles",
       "name": "610 Beacon Street",
       "address": "610 Beacon St",
-      "latitude": 42.3489,
-      "longitude": -71.0962,
-      "description": "Historic residence hall in Kenmore Square.",
-      "room_types": ["Single", "Double"],
+      "latitude": 42.3496987,
+      "longitude": -71.0943606,
+      "description": "Suite-style hall in the heart of Kenmore Square, steps from Fenway Park, restaurants and shops.",
+      "room_types": ["Suite Double", "Suite Single"],
       "image_url": "",
-      "floor_plan_url": "",
+      "floor_plan_url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/610-beacon-street/",
       "tour_360_url": "",
-      "official_url": "",
-      "amenities": [],
+      "official_url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/610-beacon-street/",
+      "amenities": ["Central AC", "Common Area Kitchen", "Laundry Facility", "Music Room", "Study Lounge", "Game Room", "Bike Storage"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": ["Myles Standish Hall", "Myles"]
     },
     {
       "id": "kilachand",
@@ -46,7 +48,8 @@
       "official_url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/kilachand-hall/",
       "amenities": ["Central AC", "Common Area Kitchen", "Laundry Facility", "Study Lounge", "Bike Storage"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": []
     },
     {
       "id": "towers",
@@ -62,7 +65,8 @@
       "official_url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/the-towers/",
       "amenities": ["Laundry Facility", "Music Room", "Study Lounge", "Bike Rack"],
       "units": ["The Towers East", "The Towers West"],
-      "addresses": []
+      "addresses": [],
+      "aliases": []
     },
     {
       "id": "danielsen",
@@ -78,7 +82,8 @@
       "official_url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/danielsen-hall/",
       "amenities": ["Common Area Kitchen", "Laundry Facility", "Study Lounge", "Bike Storage"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": []
     },
     {
       "id": "comm575",
@@ -94,7 +99,8 @@
       "official_url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/575-commonwealth-avenue/",
       "amenities": ["Central AC", "Laundry Facility", "Study Lounge", "Game Room"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": []
     },
     {
       "id": "comm1019",
@@ -110,7 +116,8 @@
       "official_url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/1019-commonwealth-avenue/",
       "amenities": ["Central AC", "Laundry Facility", "Study Lounge"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": []
     },
     {
       "id": "claflin",
@@ -126,7 +133,8 @@
       "official_url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/claflin-hall/",
       "amenities": ["Laundry Facility", "Music Room", "Study Lounge", "Bike Rack"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": []
     },
     {
       "id": "sleeper",
@@ -142,7 +150,8 @@
       "official_url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/sleeper-hall/",
       "amenities": ["Laundry Facility", "Study Lounge", "Bike Rack"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": []
     },
     {
       "id": "rich",
@@ -158,7 +167,8 @@
       "official_url": "https://www.bu.edu/housing/residence/large-traditional-style-residences/rich-hall/",
       "amenities": ["Laundry Facility", "Music Room", "Study Lounge", "Game Room", "Bike Rack"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": []
     },
     {
       "id": "stuvi1",
@@ -174,7 +184,8 @@
       "official_url": "https://www.bu.edu/housing/residence/student-village/10-buick-street/",
       "amenities": ["Central AC", "Laundry Facility", "Music Room", "Study Lounge", "Bike Storage"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": ["StuVi 1", "StuVi"]
     },
     {
       "id": "stuvi2",
@@ -190,7 +201,8 @@
       "official_url": "https://www.bu.edu/housing/residence/student-village/33-harry-agganis-way/",
       "amenities": ["Central AC", "Laundry Facility", "Music Room", "Study Lounge", "Bike Storage"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": ["StuVi 2"]
     },
     {
       "id": "bsr_east",
@@ -206,7 +218,8 @@
       "official_url": "https://www.bu.edu/housing/residences/",
       "amenities": [],
       "units": [],
-      "addresses": ["79 Bay State Road", "81-83 Bay State Road", "90-92 Bay State Road", "94 Bay State Road", "110 Bay State Road", "112 Bay State Road", "115 Bay State Road", "117 Bay State Road", "126 Bay State Road", "133 Bay State Road", "135 Bay State Road", "139 Bay State Road"]
+      "addresses": ["79 Bay State Road", "81-83 Bay State Road", "90-92 Bay State Road", "94 Bay State Road", "110 Bay State Road", "112 Bay State Road", "115 Bay State Road", "117 Bay State Road", "126 Bay State Road", "133 Bay State Road", "135 Bay State Road", "139 Bay State Road"],
+      "aliases": []
     },
     {
       "id": "bsr_central",
@@ -222,7 +235,8 @@
       "official_url": "https://www.bu.edu/housing/residences/",
       "amenities": [],
       "units": [],
-      "addresses": ["153 Bay State Road", "157 Bay State Road", "158-160 Bay State Road", "159 Bay State Road", "161 Bay State Road", "162-164 Bay State Road", "163 Bay State Road", "166-168 Bay State Road", "167-169 Bay State Road", "171 Bay State Road", "172 Bay State Road", "173 Bay State Road", "175 Bay State Road", "176 Bay State Road", "177 Bay State Road", "178 Bay State Road", "179 Bay State Road", "180 Bay State Road", "181 Bay State Road", "182 Bay State Road", "184-186 Bay State Road", "188-190 Bay State Road", "192 Bay State Road", "194 Bay State Road", "195-197 Bay State Road", "196 Bay State Road", "198 Bay State Road", "199 Bay State Road", "200 Bay State Road", "201 Bay State Road", "202 Bay State Road", "203 Bay State Road", "204 Bay State Road", "205 Bay State Road", "206 Bay State Road", "207 Bay State Road", "208 Bay State Road", "209 Bay State Road", "210-212 Bay State Road", "214 Bay State Road"]
+      "addresses": ["153 Bay State Road", "157 Bay State Road", "158-160 Bay State Road", "159 Bay State Road", "161 Bay State Road", "162-164 Bay State Road", "163 Bay State Road", "166-168 Bay State Road", "167-169 Bay State Road", "171 Bay State Road", "172 Bay State Road", "173 Bay State Road", "175 Bay State Road", "176 Bay State Road", "177 Bay State Road", "178 Bay State Road", "179 Bay State Road", "180 Bay State Road", "181 Bay State Road", "182 Bay State Road", "184-186 Bay State Road", "188-190 Bay State Road", "192 Bay State Road", "194 Bay State Road", "195-197 Bay State Road", "196 Bay State Road", "198 Bay State Road", "199 Bay State Road", "200 Bay State Road", "201 Bay State Road", "202 Bay State Road", "203 Bay State Road", "204 Bay State Road", "205 Bay State Road", "206 Bay State Road", "207 Bay State Road", "208 Bay State Road", "209 Bay State Road", "210-212 Bay State Road", "214 Bay State Road"],
+      "aliases": []
     },
     {
       "id": "riverway",
@@ -238,7 +252,8 @@
       "official_url": "https://www.bu.edu/housing/residence/fenway-campus/riverway-house/",
       "amenities": ["Central AC", "Common Area Kitchen", "Laundry Facility", "Study Lounge", "Bike Rack"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": ["Riverway House"]
     },
     {
       "id": "pilgrim",
@@ -254,7 +269,8 @@
       "official_url": "https://www.bu.edu/housing/residence/fenway-campus/pilgrim-house/",
       "amenities": ["Laundry Facility", "Study Lounge", "Bike Rack"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": ["Pilgrim House"]
     },
     {
       "id": "longwood",
@@ -270,7 +286,8 @@
       "official_url": "https://www.bu.edu/housing/residence/fenway-campus/longwood-house/",
       "amenities": ["Laundry Facility", "Study Lounge", "Bike Rack"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": ["Longwood House"]
     },
     {
       "id": "ccsr",
@@ -286,7 +303,8 @@
       "official_url": "https://www.bu.edu/housing/residence/fenway-campus/campus-center-student-residence/",
       "amenities": ["Central AC", "Common Area Kitchen", "Laundry Facility", "Bike Rack"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": ["CCSR", "Campus Center & Student Residence"]
     },
     {
       "id": "peabody",
@@ -302,7 +320,8 @@
       "official_url": "https://www.bu.edu/housing/residence/fenway-campus/peabody-hall/",
       "amenities": ["Common Area Kitchen", "Laundry Facility"],
       "units": [],
-      "addresses": []
+      "addresses": [],
+      "aliases": []
     }
   ],
   "buildings": [
@@ -336,7 +355,191 @@
       "address": "915 Commonwealth Ave",
       "latitude": 42.35160368217584,
       "longitude": -71.11635565259625,
-     "type": "recreation"
+      "type": "recreation"
+    },
+    {
+      "id": "com",
+      "name": "College of Communication (COM)",
+      "address": "640 Commonwealth Ave",
+      "latitude": 42.3488446,
+      "longitude": -71.1023183,
+      "type": "academic"
+    },
+    {
+      "id": "eng",
+      "name": "College of Engineering (ENG)",
+      "address": "44 Cummington Mall",
+      "latitude": 42.3485404,
+      "longitude": -71.1028457,
+      "type": "academic"
+    },
+    {
+      "id": "photonics",
+      "name": "Photonics Center (PHO)",
+      "address": "8 St. Mary's St",
+      "latitude": 42.3492036,
+      "longitude": -71.1061086,
+      "type": "academic"
+    },
+    {
+      "id": "metcalf",
+      "name": "Metcalf Science Center (SCI)",
+      "address": "590 Commonwealth Ave",
+      "latitude": 42.3484524,
+      "longitude": -71.1001629,
+      "type": "academic"
+    },
+    {
+      "id": "sargent",
+      "name": "Sargent College (SAR)",
+      "address": "635 Commonwealth Ave",
+      "latitude": 42.3498215,
+      "longitude": -71.1020066,
+      "type": "academic"
+    },
+    {
+      "id": "cgs",
+      "name": "College of General Studies (CGS)",
+      "address": "871 Commonwealth Ave",
+      "latitude": 42.3514817,
+      "longitude": -71.1145903,
+      "type": "academic"
+    },
+    {
+      "id": "mugar",
+      "name": "Mugar Memorial Library",
+      "address": "771 Commonwealth Ave",
+      "latitude": 42.3510118,
+      "longitude": -71.1079922,
+      "type": "academic"
+    },
+    {
+      "id": "kcb",
+      "name": "Kenmore Classroom Building (KCB)",
+      "address": "565 Commonwealth Ave",
+      "latitude": 42.3494578,
+      "longitude": -71.0981050,
+      "type": "academic"
+    },
+    {
+      "id": "kilachand_center",
+      "name": "Kilachand Center (Life Sciences & Engineering)",
+      "address": "610 Commonwealth Ave",
+      "latitude": 42.3490585,
+      "longitude": -71.1015339,
+      "type": "academic"
+    },
+    {
+      "id": "lse",
+      "name": "Life Science & Engineering Building (LSE)",
+      "address": "24 Cummington Mall",
+      "latitude": 42.3483358,
+      "longitude": -71.1017388,
+      "type": "academic"
+    },
+    {
+      "id": "psych",
+      "name": "Psychological & Brain Sciences",
+      "address": "64 Cummington Mall",
+      "latitude": 42.3487718,
+      "longitude": -71.1041984,
+      "type": "academic"
+    },
+    {
+      "id": "mcs",
+      "name": "Math & Computer Science (MCS)",
+      "address": "111 Cummington Mall",
+      "latitude": 42.3490908,
+      "longitude": -71.1041456,
+      "type": "academic"
+    },
+    {
+      "id": "stone",
+      "name": "Stone Science Building (STO)",
+      "address": "675 Commonwealth Ave",
+      "latitude": 42.3501003,
+      "longitude": -71.1038376,
+      "type": "academic"
+    },
+    {
+      "id": "wheelock",
+      "name": "Wheelock College of Education & Human Development",
+      "address": "2 Silber Way",
+      "latitude": 42.3497232,
+      "longitude": -71.1008661,
+      "type": "academic"
+    },
+    {
+      "id": "ssw",
+      "name": "School of Social Work (SSW)",
+      "address": "264 Bay State Rd",
+      "latitude": 42.3507823,
+      "longitude": -71.1052402,
+      "type": "academic"
+    },
+    {
+      "id": "sth",
+      "name": "School of Theology (STH)",
+      "address": "745 Commonwealth Ave",
+      "latitude": 42.3505236,
+      "longitude": -71.1075450,
+      "type": "academic"
+    },
+    {
+      "id": "epic",
+      "name": "Engineering Product Innovation Center (EPIC)",
+      "address": "750 Commonwealth Ave",
+      "latitude": 42.3497962,
+      "longitude": -71.1080312,
+      "type": "academic"
+    },
+    {
+      "id": "law",
+      "name": "School of Law (LAW)",
+      "address": "765 Commonwealth Ave",
+      "latitude": 42.3510643,
+      "longitude": -71.1075071,
+      "type": "academic"
+    },
+    {
+      "id": "cfa",
+      "name": "College of Fine Arts (CFA)",
+      "address": "855 Commonwealth Ave",
+      "latitude": 42.3512936,
+      "longitude": -71.1138767,
+      "type": "academic"
+    },
+    {
+      "id": "sha",
+      "name": "School of Hospitality Administration (SHA)",
+      "address": "928 Commonwealth Ave",
+      "latitude": 42.3508802,
+      "longitude": -71.1175077,
+      "type": "academic"
+    },
+    {
+      "id": "dining_warren",
+      "name": "Warren Towers Dining Hall",
+      "address": "700 Commonwealth Ave",
+      "latitude": 42.34939,
+      "longitude": -71.10368,
+      "type": "dining"
+    },
+    {
+      "id": "dining_marciano",
+      "name": "Marciano Commons",
+      "address": "100 Bay State Rd",
+      "latitude": 42.3497874,
+      "longitude": -71.0979414,
+      "type": "dining"
+    },
+    {
+      "id": "dining_west",
+      "name": "West Campus Dining Hall",
+      "address": "273 Babcock St",
+      "latitude": 42.3525797,
+      "longitude": -71.1198091,
+      "type": "dining"
     }
   ]
 }

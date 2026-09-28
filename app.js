@@ -11,6 +11,21 @@ async function loadData() {
   return data;
 }
 
+// 读取 shapes.json（建筑轮廓）。这个文件只是锦上添花：
+// 读不到也不影响网站其他功能，所以出错时返回空对象，而不是让整个页面报错
+async function loadShapes() {
+  try {
+    const response = await fetch('shapes.json');
+    if (!response.ok) {
+      return {};
+    }
+    return await response.json();
+  } catch (error) {
+    console.log('shapes.json not loaded, using circles instead');
+    return {};
+  }
+}
+
 // 把一个宿舍的信息显示到左侧 #dorm-info 区域
 // 输入：一个 dorm 对象
 // 输出：网页上 #dorm-info 的内容被替换
@@ -304,9 +319,59 @@ function updateRanking(dorms, buildings) {
   showDormRanking(ranked, building);
 }
 
+// 建立搜索索引：把每个宿舍所有可能被搜的名字都列出来，每个名字指回它的宿舍
+// 输入：dorms 数组
+// 输出：[{ label: 'StuVi', dorm: 10 Buick Street 的对象 }, ...]
+function buildSearchIndex(dorms) {
+  const index = [];
+  dorms.forEach(function (dorm) {
+    // 官方名字、地址、分楼、覆盖的地址、别名，全部可以搜
+    const labels = [dorm.name, dorm.address]
+      .concat(dorm.units, dorm.addresses, dorm.aliases);
+
+    labels.forEach(function (label) {
+      index.push({ label: label, dorm: dorm });
+    });
+  });
+  return index;
+}
+
+// 把索引里的名字放进 datalist，作为打字时的候选项
+function renderSearchOptions(index) {
+  let html = '';
+  index.forEach(function (entry) {
+    html += `<option value="${entry.label}"></option>`;
+  });
+  document.getElementById('dorm-search-options').innerHTML = html;
+}
+
+// 根据用户输入找宿舍：先找完全一样的名字，找不到再找"包含"这段文字的
+// 输入：索引、用户输入的文字
+// 输出：找到的宿舍对象；找不到时是 undefined
+function findDorm(index, query) {
+  const q = query.trim().toLowerCase(); // 去掉首尾空格、统一小写，"warren " 也能找到 "Warren"
+
+  const exact = index.find(function (entry) {
+    return entry.label.toLowerCase() === q;
+  });
+  if (exact) {
+    return exact.dorm;
+  }
+
+  const partial = index.find(function (entry) {
+    return entry.label.toLowerCase().includes(q);
+  });
+  if (partial) {
+    return partial.dorm;
+  }
+
+  return undefined;
+}
+
 // 程序入口：页面加载后从这里开始执行
 async function main() {
   const data = await loadData();
+  setBuildingShapes(await loadShapes());
 
   // 把数据交给 map.js 里的函数，画到地图上
   addDormMarkers(data.dorms);
@@ -335,6 +400,32 @@ async function main() {
   document.getElementById('rank-select').innerHTML = buildBuildingOptions(data.buildings);
   document.getElementById('rank-select').addEventListener('input', function () {
     updateRanking(data.dorms, data.buildings);
+  });
+
+  // 宿舍搜索框
+  const searchIndex = buildSearchIndex(data.dorms);
+  renderSearchOptions(searchIndex);
+
+  // 'change'：按回车、或者从候选项里点选一个时触发（不是每打一个字都触发）
+  document.getElementById('dorm-search').addEventListener('change', function (event) {
+    const query = event.target.value;
+    const message = document.getElementById('dorm-search-message');
+
+    if (query.trim() === '') {
+      message.textContent = '';
+      return;
+    }
+
+    const dorm = findDorm(searchIndex, query);
+    if (dorm === undefined) {
+      // 用 textContent 而不是 innerHTML：query 是用户打的字，不能当 HTML 执行
+      message.textContent = `No dorm matches "${query}".`;
+      return;
+    }
+
+    message.textContent = '';
+    showDormInfo(dorm);
+    focusPlace(dorm);
   });
 
   // 点击排名里的宿舍：显示详情 + 地图飞过去

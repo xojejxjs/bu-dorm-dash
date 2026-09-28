@@ -33,6 +33,7 @@ function addDormMarkers(dorms) {
       .on('click', function () {
         // 点击这个 marker 时执行：把"当前这个宿舍"交给 showDormInfo（在 app.js 里）
         showDormInfo(dorm);
+        highlightPlace(dorm);
       });
   });
 }
@@ -41,7 +42,8 @@ function addDormMarkers(dorms) {
 // 紫色而不是绿色：绿色已经用在路线的 🟢 结论上，避免混淆
 const TYPE_COLORS = {
   academic: '#1f6feb',   // 教学楼：蓝色
-  recreation: '#8e44ad'  // 健身 / 娱乐：紫色
+  recreation: '#8e44ad', // 健身 / 娱乐：紫色
+  dining: '#f28c28'      // 食堂：橙色
 };
 const DEFAULT_TYPE_COLOR = '#666666'; // data.json 里出现没定义过的 type 时用灰色
 
@@ -59,7 +61,10 @@ function addBuildingMarkers(buildings) {
       fillOpacity: 0.9
     })
       .bindTooltip(building.name)
-      .addTo(map);
+      .addTo(map)
+      .on('click', function () {
+        highlightPlace(building);
+      });
   });
 }
 
@@ -106,6 +111,47 @@ function clearRouteLine() {
 // 输入：一个地点对象（宿舍或教学楼）
 function focusPlace(place) {
   map.flyTo([place.latitude, place.longitude], 17);
+  highlightPlace(place);
+}
+
+// 建筑轮廓：key 是地点 id，value 是轮廓各个角的 [纬度, 经度]（来自 shapes.json）
+let buildingShapes = {};
+
+// app.js 读完 shapes.json 后调用，把轮廓交给地图
+function setBuildingShapes(shapes) {
+  buildingShapes = shapes;
+}
+
+// 当前框出来的建筑。和路线一样，一次只保留一个
+let highlightLayer = null;
+
+const HIGHLIGHT_STYLE = {
+  color: '#cc0000',     // 边框：BU 红
+  weight: 3,
+  fillColor: '#cc0000',
+  fillOpacity: 0.15,
+  interactive: false    // 框只用来看，不接收点击，这样不会挡住下面的圆点
+};
+
+// 把某个地点所在的建筑框起来
+// 输入：一个地点对象
+// 输出：地图上出现一个按建筑形状画的红框；没有轮廓数据时画一个圆圈代替
+function highlightPlace(place) {
+  if (highlightLayer !== null) {
+    map.removeLayer(highlightLayer);
+  }
+
+  const shape = buildingShapes[place.id];
+  if (shape) {
+    highlightLayer = L.polygon(shape, HIGHLIGHT_STYLE);
+  } else {
+    // 没有轮廓（比如 Bay State Road 这种代表一段街的点）：画一个 40 米半径的虚线圆
+    highlightLayer = L.circle([place.latitude, place.longitude],
+      Object.assign({ radius: 40, dashArray: '6 6' }, HIGHLIGHT_STYLE));
+  }
+
+  highlightLayer.addTo(map);
+  highlightLayer.bringToBack(); // 放到圆点下面一层，圆点不会被框的颜色盖住
 }
 
 // 在地图右下角加一个图例，说明每种颜色代表什么
@@ -119,6 +165,7 @@ function addLegend() {
       <div><span class="legend-dot" style="background:#cc0000"></span>Dorm</div>
       <div><span class="legend-dot" style="background:${TYPE_COLORS.academic}"></span>Academic</div>
       <div><span class="legend-dot" style="background:${TYPE_COLORS.recreation}"></span>Recreation</div>
+      <div><span class="legend-dot" style="background:${TYPE_COLORS.dining}"></span>Dining</div>
     `;
     return box;
   };

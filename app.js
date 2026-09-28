@@ -31,17 +31,45 @@ function showDormInfo(dorm) {
 
   let tourHtml = 'Not available';
   if (dorm.tour_360_url) {
-    tourHtml = `<a href="${dorm.tour_360_url}" target="_blank">Open 360 tour</a>`;
+    tourHtml = `<a href="${dorm.tour_360_url}" target="_blank">Open tour</a>`;
+  }
+
+  // 设施：数组为空或者根本没有这个字段时，这一行整个不显示
+  let amenitiesHtml = '';
+  if (dorm.amenities && dorm.amenities.length > 0) {
+    amenitiesHtml = `<p><strong>Amenities:</strong> ${dorm.amenities.join(', ')}</p>`;
+  }
+
+  // 分楼：有才显示
+  let unitsHtml = '';
+  if (dorm.units && dorm.units.length > 0) {
+    unitsHtml = `<p><strong>Buildings:</strong> ${dorm.units.join(', ')}</p>`;
+  }
+
+  // 覆盖的地址（Bay State Road 这类"一个点代表一段街"的宿舍）：有才显示
+  let addressesHtml = '';
+  if (dorm.addresses && dorm.addresses.length > 0) {
+    addressesHtml = `<p><strong>Addresses included:</strong> ${dorm.addresses.join(', ')}</p>`;
+  }
+
+  // 官方页面：有才显示
+  let officialHtml = '';
+  if (dorm.official_url) {
+    officialHtml = `<p><a href="${dorm.official_url}" target="_blank">Official BU Housing page →</a></p>`;
   }
 
   // 3. 拼出一段 HTML，替换掉元素原来的内容
   infoBox.innerHTML = `
     <h3>${dorm.name}</h3>
+    ${unitsHtml}
     ${imageHtml}
+    ${addressesHtml}
     <p>${dorm.description}</p>
     <p><strong>Room types:</strong> ${dorm.room_types.join(', ')}</p>
+    ${amenitiesHtml}
     <p><strong>Floor plan:</strong> ${floorPlanHtml}</p>
-    <p><strong>360 tour:</strong> ${tourHtml}</p>
+    <p><strong>Virtual tour:</strong> ${tourHtml}</p>
+    ${officialHtml}
   `;
 }
 
@@ -54,7 +82,15 @@ function buildPlaceOptions(dorms, buildings) {
 
   html += '<optgroup label="Dorms">';
   dorms.forEach(function (dorm) {
-    html += `<option value="${dorm.id}">${dorm.name}</option>`;
+    if (dorm.units && dorm.units.length > 0) {
+      // 有分楼的宿舍（如 Warren）：每座楼一个选项，名字和选宿舍系统一致
+      // value 都是同一个宿舍 id，因为它们在地图上是同一个点，距离一样
+      dorm.units.forEach(function (unit) {
+        html += `<option value="${dorm.id}">${unit}</option>`;
+      });
+    } else {
+      html += `<option value="${dorm.id}">${dorm.name}</option>`;
+    }
   });
   html += '</optgroup>';
 
@@ -128,13 +164,37 @@ function showRouteResult(result, fromPlace, toPlace, gapMinutes) {
     red: '🔴 Not enough time'
   };
 
+  // 两端都是教学楼才叫"课间"；有宿舍参与时用中性说法
+  let timeText = `You have ${gapMinutes} min`;
+  if (isBetweenClasses(fromPlace, toPlace)) {
+    timeText = `Time between classes: ${gapMinutes} min`;
+  }
+
   box.className = 'verdict-' + result.verdict; // 换背景色
   box.innerHTML = `
     <p><strong>${fromPlace.name} → ${toPlace.name}</strong></p>
     <p>Straight-line distance: ${formatDistance(result.meters)}</p>
     <p>Estimated walk: ~${Math.ceil(result.minutes)} min</p>
-    <p>Time between classes: ${gapMinutes} min → ${verdictText[result.verdict]}</p>
+    <p>${timeText} → ${verdictText[result.verdict]}</p>
   `;
+}
+
+// 判断这段路是不是"两节课之间"：起点和终点都选好、并且都是教学楼
+// 输入：起点对象、终点对象（还没选时是 undefined）
+// 输出：true / false
+function isBetweenClasses(fromPlace, toPlace) {
+  return Boolean(fromPlace && toPlace &&
+    fromPlace.kind === 'building' && toPlace.kind === 'building');
+}
+
+// 换输入框上面那句话
+// 输入：起点对象、终点对象
+function updateGapLabel(fromPlace, toPlace) {
+  let text = 'Minutes you have to get there';
+  if (isBetweenClasses(fromPlace, toPlace)) {
+    text = 'Minutes between classes';
+  }
+  document.getElementById('gap-label').textContent = text;
 }
 
 // 在结果区域显示一句提示（没选完、输入不对时用）
@@ -154,6 +214,11 @@ function updateRoute(places) {
   // 先清掉旧的线；如果下面因为输入不完整提前 return，地图上就不会留下过时的线
   clearRouteLine();
 
+  // 先找到两个地点，并马上更新标签文字（不用等所有检查都通过）
+  const fromPlace = findPlaceById(places, fromId);
+  const toPlace = findPlaceById(places, toId);
+  updateGapLabel(fromPlace, toPlace);
+
   if (fromId === '' || toId === '') {
     showRouteMessage('Choose a starting point and a destination to see the walking time.');
     return;
@@ -163,12 +228,9 @@ function updateRoute(places) {
     return;
   }
   if (!(gapMinutes > 0)) {
-    showRouteMessage('Enter a time between classes greater than 0 minutes.');
+    showRouteMessage('Enter a number of minutes greater than 0.');
     return;
   }
-
-  const fromPlace = findPlaceById(places, fromId);
-  const toPlace = findPlaceById(places, toId);
 
   const result = checkRoute(fromPlace, toPlace, gapMinutes);
   console.log('Route result:', result);
@@ -251,6 +313,14 @@ async function main() {
   addBuildingMarkers(data.buildings);
 
   // 宿舍和教学楼合并成一个"所有地点"数组，后面按 id 查找时用
+  // 给每个地点标上它是宿舍还是教学楼。合并成一个数组以后，靠这个字段还能分辨出来
+  data.dorms.forEach(function (dorm) {
+    dorm.kind = 'dorm';
+  });
+  data.buildings.forEach(function (building) {
+    building.kind = 'building';
+  });
+
   const places = data.dorms.concat(data.buildings);
 
   // 生成 From / To 下拉框

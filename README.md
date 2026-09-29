@@ -28,7 +28,7 @@ An interactive map that helps Boston University students compare dorms by **how 
 2. × 1.3 detour factor
 3. ÷ 80 m per minute (about 3 mph)
 
-A route is 🟢 if the walk leaves at least 3 minutes to spare, 🟡 if it fits with no spare time, and 🔴 if it doesn't fit.
+A route is 🟢 if you arrive with at least 3 minutes to spare, 🟡 if you make it with 0–2 minutes to spare (arriving exactly on time counts as 🟡), and 🔴 if you would be late.
 
 **Sanity check:** BU Housing says Peabody Hall on the Fenway Campus is "about a 15-minute walk" from main campus. The real route Peabody Hall → CAS takes **17 minutes**.
 

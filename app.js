@@ -192,18 +192,28 @@ function lookupWalkTime(fromId, toId) {
 // 输入：起点对象、终点对象、课间分钟数
 // 输出：一个结果对象 { meters, minutes, verdict }
 function checkRoute(fromPlace, toPlace, gapMinutes) {
-  const route = measureRoute(fromPlace, toPlace);
+  return judgeRoute(measureRoute(fromPlace, toPlace), gapMinutes);
+}
+
+// 根据一条路线的距离和时间，判断来不来得及
+// 单独拿出来，是因为时间有两个来源：measureRoute（查表 / 估算）和后端的真实路线，判断规则只写一份
+// 输入：{ meters, minutes, isEstimate }、课间分钟数
+// 输出：{ meters, minutes, verdict, isEstimate }
+function judgeRoute(route, gapMinutes) {
   const meters = route.meters;
   // 先向上取整再判断：页面上显示的分钟数和判断用的分钟数永远是同一个，不会出现"显示 10 分钟却说够 9.5 分钟"
   const minutes = Math.ceil(route.minutes);
 
+  // 走到以后还剩几分钟（负数就是会迟到）
+  const spareMinutes = gapMinutes - minutes;
+
   let verdict;
-  if (minutes + BUFFER_MINUTES <= gapMinutes) {
-    verdict = 'green';
-  } else if (minutes <= gapMinutes) {
-    verdict = 'yellow';
+  if (spareMinutes >= BUFFER_MINUTES) {
+    verdict = 'green';   // 剩的时间 ≥ 缓冲时间（正好等于也算够）
+  } else if (spareMinutes >= 0) {
+    verdict = 'yellow';  // 能赶到但缓冲不够：剩 0 到 BUFFER_MINUTES - 1 分钟（正好卡点到也算这里）
   } else {
-    verdict = 'red';
+    verdict = 'red';     // 会迟到
   }
 
   return { meters: meters, minutes: minutes, verdict: verdict, isEstimate: route.isEstimate };
@@ -401,10 +411,24 @@ async function updateRoute(placeIndex, allowPartial) {
     return;
   }
 
-  const result = checkRoute(fromPlace, toPlace, gapMinutes);
-  console.log('Route result:', result);
+  // 第一轮：马上显示（已知地点查表，地址用直线估算；地图先画虚线）
+  let result = checkRoute(fromPlace, toPlace, gapMinutes);
   showRouteResult(result, fromPlace, toPlace, gapMinutes);
   drawRouteLine(fromPlace, toPlace, result.verdict);
+
+  // 第二轮：问后端要真实路线（后端不可用时返回 null，第一轮的结果就保留着）
+  const real = await fetchRealRoute(fromPlace, toPlace);
+  if (!real || requestId !== routeRequestId) {
+    return; // 没有真实路线，或者等待期间用户又改了输入
+  }
+
+  // 地址这类只有估算的：换成后端算出的真实时间。已知地点保持查表的时间，和排名里的数字一致
+  if (result.isEstimate) {
+    result = judgeRoute({ meters: real.meters, minutes: real.seconds / 60, isEstimate: false }, gapMinutes);
+    showRouteResult(result, fromPlace, toPlace, gapMinutes);
+  }
+  console.log('Route result:', result);
+  drawRouteLine(fromPlace, toPlace, result.verdict, real.path);
 }
 
 // 生成"排名依据"下拉框的选项：只列出教学楼（包括 FitRec）

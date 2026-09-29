@@ -120,7 +120,9 @@ let routeLine = null;
 // 在地图上画 A → B 的连线，颜色跟结论一致
 // 输入：起点对象、终点对象、结论（'green' / 'yellow' / 'red'）
 // 输出：地图上出现一条虚线，并缩放到能看到两个点
-function drawRouteLine(fromPlace, toPlace, verdict) {
+// 输入：起点、终点、结论，以及可选的 path（后端返回的沿街道路线）
+// 有 path：画实线，沿着街道走；没有 path：画虚线直线，只表示方向
+function drawRouteLine(fromPlace, toPlace, verdict, path) {
   clearRouteLine();
 
   const lineColors = {
@@ -129,17 +131,25 @@ function drawRouteLine(fromPlace, toPlace, verdict) {
     red: '#d93025'
   };
 
-  routeLine = L.polyline(
-    [
-      [fromPlace.latitude, fromPlace.longitude],
-      [toPlace.latitude, toPlace.longitude]
-    ],
-    {
+  if (path && path.length > 1) {
+    routeLine = L.polyline(path, {
       color: lineColors[verdict],
-      weight: 4,
-      dashArray: '8 8' // 虚线：提醒用户这是直线距离，不是真实步行路线
-    }
-  ).addTo(map);
+      weight: 5,
+      opacity: 0.85
+    }).addTo(map);
+  } else {
+    routeLine = L.polyline(
+      [
+        [fromPlace.latitude, fromPlace.longitude],
+        [toPlace.latitude, toPlace.longitude]
+      ],
+      {
+        color: lineColors[verdict],
+        weight: 4,
+        dashArray: '8 8' // 虚线：提醒用户这不是真实的步行路线
+      }
+    ).addTo(map);
+  }
 
   // 自动缩放，让整条线都在视野里；padding 留出边距，点不会贴着地图边缘
   map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });

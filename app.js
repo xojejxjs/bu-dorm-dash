@@ -88,41 +88,25 @@ function showDormInfo(dorm) {
   `;
 }
 
-// 生成下拉框的选项 HTML：宿舍一组，教学楼一组
+// 生成 From / To 共用的候选列表：只放正式名字，保持简洁
+// 有分楼的宿舍（如 Warren）每座楼一条，名字和选宿舍系统一致
 // 输入：dorms 数组、buildings 数组
-// 输出：一段 <option> 的 HTML 字符串
-function buildPlaceOptions(dorms, buildings) {
-  // 第一项是空选项，value="" 表示"还没选"
-  let html = '<option value="">-- Select a place --</option>';
-
-  html += '<optgroup label="Dorms">';
+// 输出：#place-options 里出现候选项
+function renderPlaceOptions(dorms, buildings) {
+  let html = '';
   dorms.forEach(function (dorm) {
     if (dorm.units && dorm.units.length > 0) {
-      // 有分楼的宿舍（如 Warren）：每座楼一个选项，名字和选宿舍系统一致
-      // value 都是同一个宿舍 id，因为它们在地图上是同一个点，距离一样
       dorm.units.forEach(function (unit) {
-        html += `<option value="${dorm.id}">${unit}</option>`;
+        html += `<option value="${unit}"></option>`;
       });
     } else {
-      html += `<option value="${dorm.id}">${dorm.name}</option>`;
+      html += `<option value="${dorm.name}"></option>`;
     }
   });
-  html += '</optgroup>';
-
-  html += '<optgroup label="Buildings">';
   buildings.forEach(function (building) {
-    html += `<option value="${building.id}">${building.name}</option>`;
+    html += `<option value="${building.name}"></option>`;
   });
-  html += '</optgroup>';
-
-  return html;
-}
-
-// 把选项放进 From 和 To 两个下拉框（两个框的选项完全一样）
-function renderPlaceSelects(dorms, buildings) {
-  const optionsHtml = buildPlaceOptions(dorms, buildings);
-  document.getElementById('from-select').innerHTML = optionsHtml;
-  document.getElementById('to-select').innerHTML = optionsHtml;
+  document.getElementById('place-options').innerHTML = html;
 }
 
 // 根据 id 找到完整的地点对象
@@ -220,30 +204,130 @@ function showRouteMessage(text) {
   box.innerHTML = `<p class="placeholder">${text}</p>`;
 }
 
-// 读取用户输入 → 检查 → 计算 → 显示
-// 输入：所有地点的数组
-function updateRoute(places) {
-  const fromId = document.getElementById('from-select').value;
-  const toId = document.getElementById('to-select').value;
+// 识别课表上的"楼宇代码 + 教室号"，比如 "CAS 211"、"cds164"、"PHO-206"、"STO B50"
+// 输入：用户输入的文字
+// 输出：{ code: 'CAS', room: '211' }；不是这种格式时返回 null
+function parseClassroom(text) {
+  // 正则表达式：2～4 个字母（代码） + 可有可无的空格或横线 + 教室号（数字，前后可以带一个字母）
+  const match = text.trim().match(/^([A-Za-z]{2,4})\s*-?\s*([A-Za-z]?\d{1,4}[A-Za-z]?)$/);
+  if (!match) {
+    return null;
+  }
+  return { code: match[1].toUpperCase(), room: match[2].toUpperCase() };
+}
 
-  // 选中的起点、终点一定显示在地图上（没选时是空字符串，pinPlace 会当作"没有"）
-  pinPlace('from', fromId);
-  pinPlace('to', toId);
+// 把一个输入框里的文字变成地点对象
+// 查找顺序：1. 已登记的地点（宿舍、教学楼、别名、门牌号）  2. 都不是，就当成地址去查经纬度
+// 输入：输入框元素、'from' 或 'to'、搜索索引、是否允许模糊查找
+// 输出：找到的地点对象；空的或找不到时是 undefined
+async function resolvePlaceInput(inputBox, slot, placeIndex, allowPartial) {
+  const text = inputBox.value;
+  if (text.trim() === '') {
+    return undefined;
+  }
+
+  // 课表格式（比如 "CAS 211"）：用代码找楼，教室号放进显示的名字里
+  const classroom = parseClassroom(text);
+  if (classroom) {
+    // 按 data.json 里的官方楼宇代码找（完全一样才算）
+    const building = findPlace(placeIndex, classroom.code, false);
+    if (building) {
+      // 复制一份楼的对象，只改名字；id 不变，所以地图上的点、判断"是不是两节课之间"都照常工作
+      return Object.assign({}, building, { name: `${building.name}, room ${classroom.room}` });
+    }
+    // 是课表格式，但这个代码我们还没有收录：不要拿去当地址查（会查到奇怪的地方）
+    return undefined;
+  }
+
+  const place = findPlace(placeIndex, text, allowPartial);
+  if (place) {
+    // 模糊查找到了（比如输入 "stuvi"）：把输入框改成正式名字，让用户确认找到的是哪个
+    // 如果输入的本来就是某个完整名字（比如 "Warren Tower C - Shields"），就保持原样
+    if (allowPartial && !findPlace(placeIndex, text, false)) {
+      inputBox.value = place.name;
+    }
+    return place;
+  }
+
+  // 正在打字时不查地址（Nominatim 不允许边打字边查，也免得地图乱跳）
+  if (!allowPartial) {
+    return undefined;
+  }
+
+  showRouteMessage(`Looking up "${text}"…`);
+  const found = await geocodeAddress(text);
+  if (!found) {
+    return undefined;
+  }
+
+  // 造一个和 data.json 里格式一样的地点对象，后面的计算函数就能直接用
+  return {
+    id: 'address-' + slot,
+    name: found.label,
+    address: text,
+    latitude: found.latitude,
+    longitude: found.longitude,
+    kind: 'address'
+  };
+}
+
+// 每次计算路线都编一个号。查地址要等网络，等的时候用户可能又改了输入：
+// 回来时如果编号已经不是最新的，说明这次结果过时了，直接丢掉
+let routeRequestId = 0;
+
+// 读取用户输入 → 检查 → 计算 → 显示
+// 输入：搜索索引、是否允许模糊查找（正在打字时不允许，打完了才允许，免得地图跟着每个字母乱跳）
+async function updateRoute(placeIndex, allowPartial) {
+  const requestId = ++routeRequestId;
+
+  const fromBox = document.getElementById('from-input');
+  const toBox = document.getElementById('to-input');
+  const fromPlace = await resolvePlaceInput(fromBox, 'from', placeIndex, allowPartial);
+  const toPlace = await resolvePlaceInput(toBox, 'to', placeIndex, allowPartial);
   const gapMinutes = Number(document.getElementById('gap-input').value);
+
+  if (requestId !== routeRequestId) {
+    return; // 等待期间又有新的输入，这次的结果作废
+  }
+
+  // 地址地点：在地图上放可拖动的大头针；拖完后记住新位置，并重新计算
+  [[fromBox, 'from', fromPlace], [toBox, 'to', toPlace]].forEach(function ([box, slot, place]) {
+    if (place && place.kind === 'address') {
+      showAddressMarker(slot, place, function (lat, lng) {
+        adjustGeocode(box.value, lat, lng);
+        updateRoute(placeIndex, true);
+      });
+    } else {
+      clearAddressMarker(slot);
+    }
+  });
+
+  // 选中的起点、终点一定显示在地图上（没找到时是 undefined，pinPlace 会当作"没有"）
+  pinPlace('from', fromPlace && fromPlace.id);
+  pinPlace('to', toPlace && toPlace.id);
 
   // 先清掉旧的线；如果下面因为输入不完整提前 return，地图上就不会留下过时的线
   clearRouteLine();
 
-  // 先找到两个地点，并马上更新标签文字（不用等所有检查都通过）
-  const fromPlace = findPlaceById(places, fromId);
-  const toPlace = findPlaceById(places, toId);
+  // 马上更新标签文字（不用等所有检查都通过）
   updateGapLabel(fromPlace, toPlace);
 
-  if (fromId === '' || toId === '') {
+  // 打完了但找不到：告诉用户是哪个没找到
+  if (allowPartial) {
+    const missing = [fromBox, toBox].find(function (box, i) {
+      return box.value.trim() !== '' && [fromPlace, toPlace][i] === undefined;
+    });
+    if (missing) {
+      showRouteMessage(`Can't find "${missing.value}". Try a dorm or building name, or a street address near BU.`);
+      return;
+    }
+  }
+
+  if (!fromPlace || !toPlace) {
     showRouteMessage('Choose a starting point and a destination to see the walking time.');
     return;
   }
-  if (fromId === toId) {
+  if (fromPlace.id === toPlace.id) {
     showRouteMessage('Start and destination are the same place.');
     return;
   }
@@ -325,18 +409,21 @@ function updateRanking(dorms, buildings) {
   showDormRanking(ranked, building);
 }
 
-// 建立搜索索引：把每个宿舍所有可能被搜的名字都列出来，每个名字指回它的宿舍
-// 输入：dorms 数组
-// 输出：[{ label: 'StuVi', dorm: 10 Buick Street 的对象 }, ...]
-function buildSearchIndex(dorms) {
+// 建立搜索索引：把每个地点所有可能被搜的名字都列出来，每个名字指回它的地点
+// 输入：地点数组（宿舍、教学楼都可以）
+// 输出：[{ label: 'StuVi', place: 10 Buick Street 的对象 }, ...]
+function buildSearchIndex(places) {
   const index = [];
-  dorms.forEach(function (dorm) {
-    // 官方名字、地址、分楼、覆盖的地址、别名，全部可以搜
-    const labels = [dorm.name, dorm.address]
-      .concat(dorm.units, dorm.addresses, dorm.aliases);
+  places.forEach(function (place) {
+    // 官方名字、地址、楼宇代码、分楼、覆盖的地址、别名，全部可以搜
+    // 教学楼没有 units / addresses / aliases，用 || [] 换成空数组，免得 concat 把 undefined 也加进来
+    const labels = [place.name, place.address, place.code]
+      .concat(place.units || [], place.addresses || [], place.aliases || []);
 
     labels.forEach(function (label) {
-      index.push({ label: label, dorm: dorm });
+      if (label) { // 跳过空的（比如还没填代码的楼，code 是 ""）
+        index.push({ label: label, place: place });
+      }
     });
   });
   return index;
@@ -353,24 +440,27 @@ function renderSearchOptions(dorms) {
   document.getElementById('dorm-search-options').innerHTML = html;
 }
 
-// 根据用户输入找宿舍：先找完全一样的名字，找不到再找"包含"这段文字的
-// 输入：索引、用户输入的文字
-// 输出：找到的宿舍对象；找不到时是 undefined
-function findDorm(index, query) {
+// 根据用户输入找地点：先找完全一样的名字，找不到再找"包含"这段文字的
+// 输入：索引、用户输入的文字、是否允许模糊查找（不传时默认允许）
+// 输出：找到的地点对象；找不到时是 undefined
+function findPlace(index, query, allowPartial = true) {
   const q = query.trim().toLowerCase(); // 去掉首尾空格、统一小写，"warren " 也能找到 "Warren"
 
   const exact = index.find(function (entry) {
     return entry.label.toLowerCase() === q;
   });
   if (exact) {
-    return exact.dorm;
+    return exact.place;
+  }
+  if (!allowPartial) {
+    return undefined;
   }
 
   const partial = index.find(function (entry) {
     return entry.label.toLowerCase().includes(q);
   });
   if (partial) {
-    return partial.dorm;
+    return partial.place;
   }
 
   return undefined;
@@ -397,11 +487,25 @@ async function main() {
   const places = data.dorms.concat(data.buildings);
 
   // 生成 From / To 下拉框
-  renderPlaceSelects(data.dorms, data.buildings);
+  // From / To：候选列表 + 所有地点的搜索索引
+  renderPlaceOptions(data.dorms, data.buildings);
+  const placeIndex = buildSearchIndex(places);
 
-  // 监听路线区域：下拉框改选、输入框打字，都会触发 'input' 事件
-  document.getElementById('route-panel').addEventListener('input', function () {
-    updateRoute(places);
+  ['from-input', 'to-input'].forEach(function (id) {
+    const box = document.getElementById(id);
+    // 正在打字（包括从候选列表里点选）：只接受完全一样的名字
+    box.addEventListener('input', function () {
+      updateRoute(placeIndex, false);
+    });
+    // 打完了（按回车或点到别处）：允许模糊查找
+    box.addEventListener('change', function () {
+      updateRoute(placeIndex, true);
+    });
+  });
+
+  // 课间时间：边打字边更新结果
+  document.getElementById('gap-input').addEventListener('input', function () {
+    updateRoute(placeIndex, true);
   });
 
   // 生成"排名依据"下拉框，并监听它的变化
@@ -424,7 +528,7 @@ async function main() {
       return;
     }
 
-    const dorm = findDorm(searchIndex, query);
+    const dorm = findPlace(searchIndex, query);
     if (dorm === undefined) {
       // 用 textContent 而不是 innerHTML：query 是用户打的字，不能当 HTML 执行
       message.textContent = `No dorm matches "${query}".`;

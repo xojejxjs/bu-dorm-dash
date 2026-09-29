@@ -202,6 +202,41 @@ function highlightPlace(place) {
   pinPlace('highlight', place.id); // 框起来的地点一定要显示它的圆点
 }
 
+// ===== 用户输入的地址：可以拖动的大头针 =====
+
+// From、To 各最多一个地址大头针
+const addressMarkers = { from: null, to: null };
+
+// 在地图上放（或移动）一个地址大头针
+// 输入：'from' 或 'to'、地址地点对象、拖动结束后要执行的函数（会收到新的纬度、经度）
+function showAddressMarker(slot, place, onMoved) {
+  const position = [place.latitude, place.longitude];
+
+  // 每次都重新创建：保证名字和"拖完以后做什么"都对应当前这个地址
+  clearAddressMarker(slot);
+
+  // L.marker 是 Leaflet 默认的蓝色大头针；draggable: true 让用户可以拖动
+  const marker = L.marker(position, { draggable: true })
+    .bindTooltip(place.name + ' — drag to adjust')
+    .addTo(map);
+
+  // 'dragend'：用户松开鼠标、拖动结束时触发
+  marker.on('dragend', function () {
+    const latLng = marker.getLatLng();
+    onMoved(latLng.lat, latLng.lng);
+  });
+
+  addressMarkers[slot] = marker;
+}
+
+// 移除一个地址大头针（这个输入框现在不是地址了）
+function clearAddressMarker(slot) {
+  if (addressMarkers[slot]) {
+    map.removeLayer(addressMarkers[slot]);
+    addressMarkers[slot] = null;
+  }
+}
+
 // 图例里的每一类：type 对应 data.json 里的 type（宿舍用 'dorm'）
 const LEGEND_ITEMS = [
   { type: 'dorm', label: 'Dorm', color: '#cc0000' },

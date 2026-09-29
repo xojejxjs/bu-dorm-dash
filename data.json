@@ -38,7 +38,7 @@
       "id": "kilachand",
       "name": "Kilachand Hall",
       "address": "91 Bay State Rd",
-      "latitude": 42.350510,
+      "latitude": 42.35051,
       "longitude": -71.097017,
       "description": "Suite-style hall on Bay State Road near Kenmore Square, with 4–5 person suites and private bathrooms. Home to Kilachand Honors College; Marciano Commons dining hall is right across the street.",
       "room_types": ["Semi-Suite Double", "Semi-Suite Triple", "Suite Double", "Suite Triple"],
@@ -158,7 +158,7 @@
       "name": "Rich Hall",
       "address": "277 Babcock St",
       "latitude": 42.353531,
-      "longitude": -71.120640,
+      "longitude": -71.12064,
       "description": "One of the three West Campus towers, steps from FitRec, Nickerson Field and the West Campus dining hall.",
       "room_types": ["Traditional Double", "Traditional Single", "Traditional Triple"],
       "image_url": "",
@@ -311,7 +311,7 @@
       "name": "Peabody Hall",
       "address": "210 Riverway",
       "latitude": 42.341716,
-      "longitude": -71.106770,
+      "longitude": -71.10677,
       "description": "Five-story dorm-style hall on the Fenway Campus with shared kitchens, bathrooms and laundry on every floor. BU describes main campus as about a 15-minute walk or a short BU Shuttle ride away.",
       "room_types": ["Suite Double", "Suite Triple", "Traditional Double", "Traditional Single", "Traditional Triple"],
       "image_url": "",
@@ -329,7 +329,8 @@
       "id": "cds",
       "name": "Faculty of Computing & Data Sciences (CDS)",
       "address": "665 Commonwealth Ave",
-      "latitude": 42.3500,
+      "code": "CDS",
+      "latitude": 42.35,
       "longitude": -71.1033,
       "type": "academic"
     },
@@ -337,14 +338,16 @@
       "id": "cas",
       "name": "College of Arts & Sciences (CAS)",
       "address": "725 Commonwealth Ave",
+      "code": "CAS",
       "latitude": 42.35011,
       "longitude": -71.10434,
       "type": "academic"
     },
     {
       "id": "questrom",
-      "name": "Questrom School of Business",
+      "name": "Questrom School of Business (HAR)",
       "address": "595 Commonwealth Ave",
+      "code": "HAR",
       "latitude": 42.349665919765364,
       "longitude": -71.09971063584074,
       "type": "academic"
@@ -353,6 +356,7 @@
       "id": "fitrec",
       "name": "Fitness & Recreation Center (FitRec)",
       "address": "915 Commonwealth Ave",
+      "code": "FRC",
       "latitude": 42.35160368217584,
       "longitude": -71.11635565259625,
       "type": "recreation"
@@ -361,22 +365,34 @@
       "id": "com",
       "name": "College of Communication (COM)",
       "address": "640 Commonwealth Ave",
+      "code": "COM",
       "latitude": 42.3488446,
       "longitude": -71.1023183,
       "type": "academic"
     },
     {
       "id": "eng",
-      "name": "College of Engineering (ENG)",
+      "name": "Engineering Research Building (ERB)",
       "address": "44 Cummington Mall",
+      "code": "ERB",
       "latitude": 42.3485404,
       "longitude": -71.1028457,
       "type": "academic"
     },
     {
+      "id": "eng_main",
+      "name": "College of Engineering (ENG)",
+      "address": "110–112 Cummington Mall",
+      "code": "ENG",
+      "latitude": 42.3490934,
+      "longitude": -71.1054555,
+      "type": "academic"
+    },
+    {
       "id": "photonics",
-      "name": "Photonics Center (PHO)",
+      "name": "Photonics Building (PHO)",
       "address": "8 St. Mary's St",
+      "code": "PHO",
       "latitude": 42.3492036,
       "longitude": -71.1061086,
       "type": "academic"
@@ -385,6 +401,7 @@
       "id": "metcalf",
       "name": "Metcalf Science Center (SCI)",
       "address": "590 Commonwealth Ave",
+      "code": "SCI",
       "latitude": 42.3484524,
       "longitude": -71.1001629,
       "type": "academic"
@@ -393,6 +410,7 @@
       "id": "sargent",
       "name": "Sargent College (SAR)",
       "address": "635 Commonwealth Ave",
+      "code": "SAR",
       "latitude": 42.3498215,
       "longitude": -71.1020066,
       "type": "academic"
@@ -401,14 +419,16 @@
       "id": "cgs",
       "name": "College of General Studies (CGS)",
       "address": "871 Commonwealth Ave",
+      "code": "CGS",
       "latitude": 42.3514817,
       "longitude": -71.1145903,
       "type": "academic"
     },
     {
       "id": "mugar",
-      "name": "Mugar Memorial Library",
+      "name": "Mugar Memorial Library (MUG)",
       "address": "771 Commonwealth Ave",
+      "code": "MUG",
       "latitude": 42.3510118,
       "longitude": -71.1079922,
       "type": "academic"
@@ -417,14 +437,16 @@
       "id": "kcb",
       "name": "Kenmore Classroom Building (KCB)",
       "address": "565 Commonwealth Ave",
+      "code": "KCB",
       "latitude": 42.3494578,
-      "longitude": -71.0981050,
+      "longitude": -71.098105,
       "type": "academic"
     },
     {
       "id": "kilachand_center",
-      "name": "Kilachand Center (Life Sciences & Engineering)",
+      "name": "Rajen Kilachand Center (RKC)",
       "address": "610 Commonwealth Ave",
+      "code": "RKC",
       "latitude": 42.3490585,
       "longitude": -71.1015339,
       "type": "academic"
@@ -433,14 +455,16 @@
       "id": "lse",
       "name": "Life Science & Engineering Building (LSE)",
       "address": "24 Cummington Mall",
+      "code": "LSE",
       "latitude": 42.3483358,
       "longitude": -71.1017388,
       "type": "academic"
     },
     {
       "id": "psych",
-      "name": "Psychological & Brain Sciences",
+      "name": "Psychological & Brain Sciences (PSY)",
       "address": "64 Cummington Mall",
+      "code": "PSY",
       "latitude": 42.3487718,
       "longitude": -71.1041984,
       "type": "academic"
@@ -449,6 +473,7 @@
       "id": "mcs",
       "name": "Math & Computer Science (MCS)",
       "address": "111 Cummington Mall",
+      "code": "MCS",
       "latitude": 42.3490908,
       "longitude": -71.1041456,
       "type": "academic"
@@ -457,14 +482,16 @@
       "id": "stone",
       "name": "Stone Science Building (STO)",
       "address": "675 Commonwealth Ave",
+      "code": "STO",
       "latitude": 42.3501003,
       "longitude": -71.1038376,
       "type": "academic"
     },
     {
       "id": "wheelock",
-      "name": "Wheelock College of Education & Human Development",
+      "name": "Wheelock College of Education (WED)",
       "address": "2 Silber Way",
+      "code": "WED",
       "latitude": 42.3497232,
       "longitude": -71.1008661,
       "type": "academic"
@@ -473,6 +500,7 @@
       "id": "ssw",
       "name": "School of Social Work (SSW)",
       "address": "264 Bay State Rd",
+      "code": "SSW",
       "latitude": 42.3507823,
       "longitude": -71.1052402,
       "type": "academic"
@@ -481,14 +509,16 @@
       "id": "sth",
       "name": "School of Theology (STH)",
       "address": "745 Commonwealth Ave",
+      "code": "STH",
       "latitude": 42.3505236,
-      "longitude": -71.1075450,
+      "longitude": -71.107545,
       "type": "academic"
     },
     {
       "id": "epic",
-      "name": "Engineering Product Innovation Center (EPIC)",
+      "name": "Engineering Product Innovation Center (EPC)",
       "address": "750 Commonwealth Ave",
+      "code": "EPC",
       "latitude": 42.3497962,
       "longitude": -71.1080312,
       "type": "academic"
@@ -497,6 +527,7 @@
       "id": "law",
       "name": "School of Law (LAW)",
       "address": "765 Commonwealth Ave",
+      "code": "LAW",
       "latitude": 42.3510643,
       "longitude": -71.1075071,
       "type": "academic"
@@ -505,6 +536,7 @@
       "id": "cfa",
       "name": "College of Fine Arts (CFA)",
       "address": "855 Commonwealth Ave",
+      "code": "CFA",
       "latitude": 42.3512936,
       "longitude": -71.1138767,
       "type": "academic"
@@ -513,6 +545,7 @@
       "id": "sha",
       "name": "School of Hospitality Administration (SHA)",
       "address": "928 Commonwealth Ave",
+      "code": "SHA",
       "latitude": 42.3508802,
       "longitude": -71.1175077,
       "type": "academic"
@@ -521,6 +554,7 @@
       "id": "dining_warren",
       "name": "Warren Towers Dining Hall",
       "address": "700 Commonwealth Ave",
+      "code": "",
       "latitude": 42.34939,
       "longitude": -71.10368,
       "type": "dining"
@@ -529,6 +563,7 @@
       "id": "dining_marciano",
       "name": "Marciano Commons",
       "address": "100 Bay State Rd",
+      "code": "",
       "latitude": 42.3497874,
       "longitude": -71.0979414,
       "type": "dining"
@@ -537,6 +572,7 @@
       "id": "dining_west",
       "name": "West Campus Dining Hall",
       "address": "273 Babcock St",
+      "code": "",
       "latitude": 42.3525797,
       "longitude": -71.1198091,
       "type": "dining"
@@ -545,6 +581,7 @@
       "id": "gsu",
       "name": "George Sherman Union (GSU)",
       "address": "775 Commonwealth Ave",
+      "code": "GSU",
       "latitude": 42.3509672,
       "longitude": -71.1089756,
       "type": "student_life"
@@ -553,6 +590,7 @@
       "id": "isso",
       "name": "International Students & Scholars Office (ISSO)",
       "address": "888 Commonwealth Ave",
+      "code": "IEC",
       "latitude": 42.3504476,
       "longitude": -71.1152609,
       "type": "student_life"
@@ -561,6 +599,7 @@
       "id": "shs",
       "name": "Student Health Services",
       "address": "881 Commonwealth Ave",
+      "code": "",
       "latitude": 42.3514515,
       "longitude": -71.1152592,
       "type": "student_life"
@@ -569,8 +608,9 @@
       "id": "career",
       "name": "Center for Career Development",
       "address": "100 Bay State Rd",
+      "code": "YAW",
       "latitude": 42.3497874,
-      "longitude": -71.0977200,
+      "longitude": -71.09772,
       "type": "student_life"
     }
   ]

@@ -1,2 +1,5 @@
 # macOS 自动生成的文件夹显示设置，和项目无关
 .DS_Store
+
+# 存放 API key 等密钥的文件：绝对不能上传到 GitHub
+.env

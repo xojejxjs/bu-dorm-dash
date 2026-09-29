@@ -467,6 +467,7 @@
       "code": "PSY",
       "latitude": 42.3487718,
       "longitude": -71.1041984,
+      "entrance": [42.34898, -71.10417],
       "type": "academic"
     },
     {
@@ -476,6 +477,7 @@
       "code": "MCS",
       "latitude": 42.3490908,
       "longitude": -71.1041456,
+      "entrance": [42.34895, -71.10415],
       "type": "academic"
     },
     {

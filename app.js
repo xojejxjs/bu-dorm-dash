@@ -124,11 +124,68 @@ const BUFFER_MINUTES = 3; // 缓冲时间：下课拖堂、收拾东西、找教
 // 输入：起点对象、终点对象
 // 输出：{ meters, minutes }
 function measureRoute(fromPlace, toPlace) {
+  // 1. 两个都是已知地点：查提前算好的真实步行时间表
+  const real = lookupWalkTime(fromPlace.id, toPlace.id);
+  if (real) {
+    return { meters: real.meters, minutes: real.seconds / 60, isEstimate: false };
+  }
+
+  // 2. 有一个不在表里（比如用户输入的地址）：退回到直线估算
   const meters = getDistance(
     fromPlace.latitude, fromPlace.longitude,
     toPlace.latitude, toPlace.longitude
   );
-  return { meters: meters, minutes: getWalkMinutes(meters) };
+  return { meters: meters, minutes: getWalkMinutes(meters), isEstimate: true };
+}
+
+// ===== 提前算好的真实步行时间表（walk-times.json，由 tools/fetch-walk-times.js 生成） =====
+
+// 表的内容，以及"地点 id → 在表里第几行 / 第几列"的对照
+let walkTable = null;
+let walkTableIndex = {};
+
+// 读取 walk-times.json。和 shapes.json 一样：读不到也不影响网站，只是全部退回到直线估算
+async function loadWalkTimes() {
+  try {
+    const response = await fetch('walk-times.json');
+    if (!response.ok) {
+      return null;
+    }
+    return await response.json();
+  } catch (error) {
+    console.log('walk-times.json not loaded, using straight-line estimates');
+    return null;
+  }
+}
+
+// 保存表，并建立 id → 位置 的对照，查表时就不用每次在 ids 数组里找
+function setWalkTable(table) {
+  walkTable = table;
+  walkTableIndex = {};
+  if (table) {
+    table.ids.forEach(function (id, i) {
+      walkTableIndex[id] = i;
+    });
+  }
+}
+
+// 查两个地点之间的真实步行时间
+// 输入：起点 id、终点 id
+// 输出：{ seconds, meters }；表里没有（或者路线服务算不出来）时返回 null
+function lookupWalkTime(fromId, toId) {
+  if (!walkTable) {
+    return null;
+  }
+  const i = walkTableIndex[fromId];
+  const j = walkTableIndex[toId];
+  if (i === undefined || j === undefined) {
+    return null;
+  }
+  const seconds = walkTable.seconds[i][j];
+  if (seconds === null) {
+    return null;
+  }
+  return { seconds: seconds, meters: walkTable.meters[i][j] };
 }
 
 // 计算 A → B 的距离和步行时间，并判断来不来得及
@@ -149,7 +206,7 @@ function checkRoute(fromPlace, toPlace, gapMinutes) {
     verdict = 'red';
   }
 
-  return { meters: meters, minutes: minutes, verdict: verdict };
+  return { meters: meters, minutes: minutes, verdict: verdict, isEstimate: route.isEstimate };
 }
 
 // 把结果显示到 #route-result
@@ -170,11 +227,19 @@ function showRouteResult(result, fromPlace, toPlace, gapMinutes) {
     timeText = `Time between classes: ${gapMinutes} min`;
   }
 
+  // 真实路线和估算要说清楚是哪一种，不能让估算看起来像真实数据
+  let distanceText = `Walking distance: ${formatDistance(result.meters)}`;
+  let walkText = `Walk: ~${Math.ceil(result.minutes)} min (along streets)`;
+  if (result.isEstimate) {
+    distanceText = `Straight-line distance: ${formatDistance(result.meters)}`;
+    walkText = `Estimated walk: ~${Math.ceil(result.minutes)} min (rough estimate, not a real route)`;
+  }
+
   box.className = 'verdict-' + result.verdict; // 换背景色
   box.innerHTML = `
     <p><strong>${fromPlace.name} → ${toPlace.name}</strong></p>
-    <p>Straight-line distance: ${formatDistance(result.meters)}</p>
-    <p>Estimated walk: ~${Math.ceil(result.minutes)} min</p>
+    <p>${distanceText}</p>
+    <p>${walkText}</p>
     <p>${timeText} → ${verdictText[result.verdict]}</p>
   `;
 }
@@ -470,6 +535,7 @@ function findPlace(index, query, allowPartial = true) {
 async function main() {
   const data = await loadData();
   setBuildingShapes(await loadShapes());
+  setWalkTable(await loadWalkTimes());
 
   // 把数据交给 map.js 里的函数，画到地图上
   addDormMarkers(data.dorms);

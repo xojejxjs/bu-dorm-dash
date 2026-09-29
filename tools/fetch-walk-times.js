@@ -51,7 +51,14 @@ async function main() {
   const places = data.dorms.concat(data.buildings);
 
   const ids = places.map(function (p) { return p.id; });
-  const locations = places.map(function (p) { return [p.longitude, p.latitude]; });
+  // 有 entrance（入口坐标）的地点，用入口算路线；没有的用地图上的点
+  // 原因：路线服务会把点"吸附"到最近的路上，楼中间的点可能被吸到楼另一侧不相通的小路上
+  const locations = places.map(function (p) {
+    if (p.entrance) {
+      return [p.entrance[1], p.entrance[0]]; // entrance 是 [纬度, 经度]，这里要换成 [经度, 纬度]
+    }
+    return [p.longitude, p.latitude];
+  });
 
   // 每一批最多几个起点：保证 起点数 × 终点数 不超过 3500
   const batchSize = Math.floor(MAX_CELLS_PER_REQUEST / places.length);

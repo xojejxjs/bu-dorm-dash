@@ -35,11 +35,68 @@ function areaSqm(polygon) {
   return Math.abs(sum / 2) * 111000 * 82000;
 }
 
-// 点到多边形最近顶点的距离（米，粗略）
+// 点到多边形边界的最短距离（米，粗略）。按"边"算而不是按"角"算，大楼也能算准
 function distanceToPolygon(lat, lng, polygon) {
-  return Math.min(...polygon.map(function (p) {
-    return Math.hypot((p[0] - lat) * 111000, (p[1] - lng) * 82000);
-  }));
+  // 先换算成以米为单位的平面坐标，再算点到每条线段的距离
+  const toXY = function (p) { return [(p[1] - lng) * 82000, (p[0] - lat) * 111000]; };
+  let best = Infinity;
+  for (let i = 0; i < polygon.length - 1; i++) {
+    const [ax, ay] = toXY(polygon[i]);
+    const [bx, by] = toXY(polygon[i + 1]);
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lengthSq = dx * dx + dy * dy;
+    // t：点在这条线段上的投影位置，限制在 0～1 之间（线段两端之间）
+    const t = lengthSq === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / lengthSq));
+    best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy));
+  }
+  return best;
+}
+
+// 把几段首尾相连的线拼成一个闭合的圈
+// （由好几座楼组成的建筑，在 OpenStreetMap 里的外框常常是分成几段存的）
+function joinSegments(segments) {
+  const remaining = segments.slice();
+  const ring = remaining.shift().slice();
+  const same = function (a, b) { return a[0] === b[0] && a[1] === b[1]; };
+
+  let found = true;
+  while (remaining.length > 0 && found) {
+    found = false;
+    const end = ring[ring.length - 1];
+    for (let i = 0; i < remaining.length; i++) {
+      const seg = remaining[i];
+      if (same(seg[0], end)) {
+        ring.push(...seg.slice(1));
+      } else if (same(seg[seg.length - 1], end)) {
+        ring.push(...seg.slice().reverse().slice(1));
+      } else {
+        continue;
+      }
+      remaining.splice(i, 1);
+      found = true;
+      break;
+    }
+  }
+  return ring;
+}
+
+// 把 Overpass 返回的一个元素变成 [[纬度, 经度], ...]
+// way：本身就是一圈点；relation：把 role 为 outer 的外框拼起来
+function toPoints(element) {
+  const round = function (p) { return [Number(p.lat.toFixed(6)), Number(p.lon.toFixed(6))]; };
+
+  if (element.type === 'way') {
+    return element.geometry ? element.geometry.map(round) : null;
+  }
+
+  const outers = (element.members || [])
+    .filter(function (m) { return m.role === 'outer' && m.geometry; })
+    .map(function (m) { return m.geometry.map(round); });
+  if (outers.length === 0) {
+    return null;
+  }
+  return joinSegments(outers);
 }
 
 // 给一个地点挑一栋楼：
@@ -52,6 +109,10 @@ function pickBuilding(place, buildings) {
   const containing = buildings.filter(function (b) { return isInside(lat, lng, b.points); });
   if (containing.length > 0) {
     containing.sort(function (a, b) {
+      // 真正的建筑优先；施工区域（比如 Warren Towers Renovation）只在没有建筑时才用
+      if (a.isConstruction !== b.isConstruction) {
+        return a.isConstruction ? 1 : -1;
+      }
       if (Boolean(a.name) !== Boolean(b.name)) {
         return a.name ? -1 : 1; // 有名字的排前面
       }
@@ -71,7 +132,12 @@ async function main() {
   const data = JSON.parse(fs.readFileSync('data.json', 'utf8'));
 
   console.log('downloading all buildings around BU (one request, may take a minute)...');
-  const query = `[out:json][timeout:120];way["building"](${BBOX});out geom;`;
+  // 三种都下载：普通建筑（way）、由几部分组成的建筑（relation）、施工中的区域（比如正在翻修的 Warren）
+  const query = `[out:json][timeout:180];(
+    way["building"](${BBOX});
+    relation["building"](${BBOX});
+    way["landuse"="construction"](${BBOX});
+  );out geom;`;
   const response = await fetch(OVERPASS_URL + '?data=' + encodeURIComponent(query), {
     headers: { 'User-Agent': 'bu-housing-tool (student project)' }
   });
@@ -81,11 +147,17 @@ async function main() {
   }
   const elements = (await response.json()).elements;
 
-  const buildings = elements.filter(function (e) { return e.geometry; }).map(function (e) {
-    const points = e.geometry.map(function (p) {
-      return [Number(p.lat.toFixed(6)), Number(p.lon.toFixed(6))];
-    });
-    return { name: e.tags && e.tags.name, points: points, area: areaSqm(points) };
+  const buildings = [];
+  elements.forEach(function (e) {
+    const points = toPoints(e);
+    if (points && points.length >= 4) {
+      buildings.push({
+        name: e.tags && e.tags.name,
+        isConstruction: Boolean(e.tags && e.tags.landuse === 'construction'),
+        points: points,
+        area: areaSqm(points)
+      });
+    }
   });
   console.log('downloaded', buildings.length, 'buildings');
 

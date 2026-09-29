@@ -225,6 +225,10 @@ function showRouteMessage(text) {
 function updateRoute(places) {
   const fromId = document.getElementById('from-select').value;
   const toId = document.getElementById('to-select').value;
+
+  // 选中的起点、终点一定显示在地图上（没选时是空字符串，pinPlace 会当作"没有"）
+  pinPlace('from', fromId);
+  pinPlace('to', toId);
   const gapMinutes = Number(document.getElementById('gap-input').value);
 
   // 先清掉旧的线；如果下面因为输入不完整提前 return，地图上就不会留下过时的线
@@ -307,6 +311,7 @@ function showDormRanking(ranked, building) {
 // 输入：dorms 数组、buildings 数组
 function updateRanking(dorms, buildings) {
   const buildingId = document.getElementById('rank-select').value;
+  pinPlace('rank', buildingId); // 排名选的那栋楼一定显示在地图上
 
   if (buildingId === '') {
     document.getElementById('results').innerHTML =
@@ -338,10 +343,12 @@ function buildSearchIndex(dorms) {
 }
 
 // 把索引里的名字放进 datalist，作为打字时的候选项
-function renderSearchOptions(index) {
+// 候选列表只放每个宿舍的正式名字，一个宿舍一条，保持简洁
+// （地址、俗称、门牌号不列出来，但输入后按回车仍然能搜到，因为它们都在搜索索引里）
+function renderSearchOptions(dorms) {
   let html = '';
-  index.forEach(function (entry) {
-    html += `<option value="${entry.label}"></option>`;
+  dorms.forEach(function (dorm) {
+    html += `<option value="${dorm.name}"></option>`;
   });
   document.getElementById('dorm-search-options').innerHTML = html;
 }
@@ -405,7 +412,7 @@ async function main() {
 
   // 宿舍搜索框
   const searchIndex = buildSearchIndex(data.dorms);
-  renderSearchOptions(searchIndex);
+  renderSearchOptions(data.dorms);
 
   // 'change'：按回车、或者从候选项里点选一个时触发（不是每打一个字都触发）
   document.getElementById('dorm-search').addEventListener('change', function (event) {

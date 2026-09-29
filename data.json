@@ -540,6 +540,38 @@
       "latitude": 42.3525797,
       "longitude": -71.1198091,
       "type": "dining"
+    },
+    {
+      "id": "gsu",
+      "name": "George Sherman Union (GSU)",
+      "address": "775 Commonwealth Ave",
+      "latitude": 42.3509672,
+      "longitude": -71.1089756,
+      "type": "student_life"
+    },
+    {
+      "id": "isso",
+      "name": "International Students & Scholars Office (ISSO)",
+      "address": "888 Commonwealth Ave",
+      "latitude": 42.3504476,
+      "longitude": -71.1152609,
+      "type": "student_life"
+    },
+    {
+      "id": "shs",
+      "name": "Student Health Services",
+      "address": "881 Commonwealth Ave",
+      "latitude": 42.3514515,
+      "longitude": -71.1152592,
+      "type": "student_life"
+    },
+    {
+      "id": "career",
+      "name": "Center for Career Development",
+      "address": "100 Bay State Rd",
+      "latitude": 42.3497874,
+      "longitude": -71.0977200,
+      "type": "student_life"
     }
   ]
 }

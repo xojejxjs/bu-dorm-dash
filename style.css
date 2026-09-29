@@ -185,6 +185,23 @@ main {
   margin-right: 6px;
 }
 
+.legend-title {
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
+/* 图例每一行：勾选框 + 圆点 + 文字，整行都可以点 */
+.map-legend label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.map-legend input {
+  margin: 0 2px 0 0;
+}
+
 /* ===== 手机布局：屏幕宽度 ≤ 768px 时，下面这些规则才生效 ===== */
 @media (max-width: 768px) {
   header h1 {

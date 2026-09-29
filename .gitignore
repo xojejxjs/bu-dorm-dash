@@ -3,3 +3,9 @@
 
 # 存放 API key 等密钥的文件：绝对不能上传到 GitHub
 .env
+
+# 后端的 Python 虚拟环境（每个人按 requirements.txt 自己安装，不上传）
+.venv/
+
+# Python 运行时自动生成的缓存文件
+__pycache__/

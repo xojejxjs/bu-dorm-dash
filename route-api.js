@@ -3,7 +3,7 @@
 
 // 线上后端的网址（部署到 Render 之后填进来，比如 'https://bu-dorm-dash-api.onrender.com'）
 // 还是 null 时，线上网站就不用后端，和以前一样只用提前算好的表和直线估算
-const PRODUCTION_BACKEND_URL = null;
+const PRODUCTION_BACKEND_URL = 'https://bu-dorm-dash.onrender.com';
 
 // 后端在哪里：本地开发（网页在 localhost）用本机的 8001 端口；线上网站用上面那个网址
 const BACKEND_URL = ['localhost', '127.0.0.1'].includes(location.hostname)

@@ -240,6 +240,50 @@ function clearAddressMarker(slot) {
   }
 }
 
+// ===== 我的课：在地图上标出上课的楼 =====
+
+// 所有"我的课"标记放在一个图层组里，方便一次性清掉或重新画
+const classLayer = L.featureGroup().addTo(map);
+
+// 在地图上标出上课的楼：每栋楼一个深色圆形标记，里面的数字是在这栋楼上几门课
+// 输入：[{ place, classes: [课程, ...] }]
+function showClassMarkers(groups) {
+  classLayer.clearLayers();
+
+  groups.forEach(function (group) {
+    // divIcon：用一小段 HTML 当标记的图案，这样可以在圆圈里写数字
+    const icon = L.divIcon({
+      className: 'class-pin-wrapper',
+      html: `<div class="class-pin">${group.classes.length}</div>`,
+      iconSize: [30, 30],
+      iconAnchor: [15, 15] // 图案的中心对准楼的位置
+    });
+
+    // 鼠标悬停时显示：楼名 + 每门课的课号、时间、教室
+    const lines = group.classes.map(function (c) {
+      return `${c.course} ${c.section} · ${c.time} · ${c.code} ${c.room}`;
+    });
+    const tooltip = `<strong>${group.place.name}</strong><br>${lines.join('<br>')}`;
+
+    L.marker([group.place.latitude, group.place.longitude], { icon: icon })
+      .bindTooltip(tooltip)
+      .on('click', function () {
+        highlightPlace(group.place);
+      })
+      .addTo(classLayer);
+  });
+
+  // 缩放地图，让所有上课的楼都在视野里
+  if (groups.length > 0) {
+    map.fitBounds(classLayer.getBounds(), { padding: [60, 60], maxZoom: 17 });
+  }
+}
+
+// 清掉"我的课"标记
+function clearClassMarkers() {
+  classLayer.clearLayers();
+}
+
 // 图例里的每一类：type 对应 data.json 里的 type（宿舍用 'dorm'）
 const LEGEND_ITEMS = [
   { type: 'dorm', label: 'Dorm', color: '#cc0000' },

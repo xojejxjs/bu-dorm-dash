@@ -36,6 +36,26 @@
         </div>
       </section>
 
+      <!-- 区域 0.5：我的课（上传课表截图，识别出上课的楼并标在地图上） -->
+      <section id="schedule-panel">
+        <h2>My classes</h2>
+        <p class="hint">Upload a screenshot of your class schedule. It is read in your browser and never uploaded.</p>
+
+        <!-- accept="image/*"：选择文件时只显示图片 -->
+        <input type="file" id="schedule-file" accept="image/*">
+
+        <!-- 识别不准时的备用方式：直接粘贴课表文字 -->
+        <details id="schedule-paste">
+          <summary>Or paste your schedule as text</summary>
+          <textarea id="schedule-text" rows="5"
+                    placeholder="e.g.&#10;Intro to DS with Python&#10;CDSDS 110 (LEC)&#10;1:25 - 2:15 pm&#10;685-725 Comm Ave CAS 211"></textarea>
+          <button type="button" id="schedule-text-button">Read text</button>
+        </details>
+
+        <p id="schedule-status" class="hint"></p>
+        <div id="schedule-list"></div>
+      </section>
+
       <!-- 区域 1：路线选择（选项由 JS 根据 data.json 生成） -->
       <section id="route-panel">
         <h2>Route check</h2>
@@ -92,10 +112,14 @@
   <!-- 先加载 Leaflet 库，后面的代码才能使用 L -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- Tesseract.js：在浏览器里识别图片中的文字（OCR），用于读取课表截图 -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
   <!-- 我们自己的 JS，顺序很重要：被别人用的文件要先加载 -->
   <script src="distance.js"></script>
   <script src="geocode.js"></script>
   <script src="route-api.js"></script>
+  <script src="schedule.js"></script>
   <script src="map.js"></script>
   <script src="app.js"></script>
 

@@ -156,6 +156,101 @@ main {
   color: #888;
 }
 
+/* ===== 我的课 ===== */
+.hint {
+  font-size: 13px;
+  color: #666;
+  margin: 4px 0 8px;
+}
+
+.hint:empty {
+  display: none;
+}
+
+#schedule-paste {
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+#schedule-paste summary {
+  cursor: pointer;
+  color: #555;
+}
+
+#schedule-text {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.class-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+}
+
+.class-item {
+  font-size: 14px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid #e2e2e2;
+  border-left: 4px solid #222;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.class-item:hover {
+  border-color: #222;
+}
+
+/* 没有地点的课：虚线边框，表示"还没放到地图上" */
+.unlocated-title {
+  font-size: 14px;
+  margin: 16px 0 2px;
+}
+
+.unlocated-item {
+  font-size: 14px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px dashed #bbb;
+  border-radius: 8px;
+}
+
+.unlocated-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.unlocated-actions input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 地图上"我的课"的标记：深色圆圈里写这栋楼有几门课 */
+.class-pin-wrapper {
+  background: none;
+  border: none;
+}
+
+.class-pin {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #222;
+  color: white;
+  border: 3px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 14px;
+}
+
 .placeholder {
   color: #999;
   font-size: 14px;

@@ -1,13 +1,20 @@
 // route-api.js：只负责向我们自己的后端要"真实步行路线"
 // 后端（backend/main.py）保管 API key，浏览器永远看不到 key
 
-// 后端在哪里：
-// - 本地开发（网页在 localhost）：后端在 localhost:8001
-// - 线上网站：后端还没部署，先不用（设成 null，网站就和以前一样只用提前算好的表和直线估算）
-// 以后后端部署上线，只要把 null 换成后端的网址
+// 线上后端的网址（部署到 Render 之后填进来，比如 'https://bu-dorm-dash-api.onrender.com'）
+// 还是 null 时，线上网站就不用后端，和以前一样只用提前算好的表和直线估算
+const PRODUCTION_BACKEND_URL = null;
+
+// 后端在哪里：本地开发（网页在 localhost）用本机的 8001 端口；线上网站用上面那个网址
 const BACKEND_URL = ['localhost', '127.0.0.1'].includes(location.hostname)
   ? 'http://localhost:8001'
-  : null;
+  : PRODUCTION_BACKEND_URL;
+
+// 网页一打开就悄悄"叫醒"后端：免费的托管平台闲置一段时间会让后端睡着，唤醒要几十秒
+// 用户看地图、输入地点的这段时间，后端就醒过来了。结果不用管，失败也没关系
+if (BACKEND_URL) {
+  fetch(`${BACKEND_URL}/api/health`).catch(function () {});
+}
 
 // 向后端要一条路线
 // 输入：起点对象、终点对象（都要有 latitude / longitude）

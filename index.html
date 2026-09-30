@@ -54,6 +54,9 @@
 
         <p id="schedule-status" class="hint"></p>
         <div id="schedule-list"></div>
+
+        <!-- 确认 / 跳过之后短暂出现的提示，可以 Undo -->
+        <div id="class-toast" class="toast" hidden></div>
       </section>
 
       <!-- 区域 1：路线选择（选项由 JS 根据 data.json 生成） -->
@@ -120,6 +123,8 @@
   <script src="geocode.js"></script>
   <script src="route-api.js"></script>
   <script src="schedule.js"></script>
+  <script src="course-guess.js"></script>
+  <script src="my-classes.js"></script>
   <script src="map.js"></script>
   <script src="app.js"></script>
 

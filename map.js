@@ -247,16 +247,23 @@ const classLayer = L.featureGroup().addTo(map);
 
 // 在地图上标出上课的楼：每栋楼一个深色圆形标记，里面的数字是在这栋楼上几门课
 // 输入：[{ place, classes: [课程, ...] }]
+// 输入：[{ place, classes, color }]，color 是这栋楼在列表和地图上共用的颜色
 function showClassMarkers(groups) {
   classLayer.clearLayers();
 
   groups.forEach(function (group) {
-    // divIcon：用一小段 HTML 当标记的图案，这样可以在圆圈里写数字
+    // 标签直接写清楚意思："CAS · 3 classes"，不用鼠标悬停也能看懂
+    const count = group.classes.length;
+    const shortName = group.place.code || group.place.name;
+    const label = `${shortName} · ${count} ${count === 1 ? 'class' : 'classes'}`;
+
+    // divIcon：用一小段 HTML 当标记的图案
+    // 标签宽度随文字变化，所以不固定大小，用 CSS 把标签的中心移到楼的位置上
     const icon = L.divIcon({
       className: 'class-pin-wrapper',
-      html: `<div class="class-pin">${group.classes.length}</div>`,
-      iconSize: [30, 30],
-      iconAnchor: [15, 15] // 图案的中心对准楼的位置
+      html: `<div class="class-label" style="background:${group.color}">${label}</div>`,
+      iconSize: [0, 0],
+      iconAnchor: [0, 0]
     });
 
     // 鼠标悬停时显示：楼名 + 每门课的课号、时间、教室
@@ -282,6 +289,29 @@ function showClassMarkers(groups) {
 // 清掉"我的课"标记
 function clearClassMarkers() {
   classLayer.clearLayers();
+}
+
+// 确认 / 编辑时的"预览"标记：空心、虚线、带问号，表示"还没确认"
+let classPreviewMarker = null;
+
+// 在地图上预览用户正在选的那栋楼，并把地图移过去
+function showClassPreview(place) {
+  clearClassPreview();
+  const icon = L.divIcon({
+    className: 'class-pin-wrapper',
+    html: '<div class="class-pin class-pin-preview">?</div>',
+    iconSize: [30, 30],
+    iconAnchor: [15, 15]
+  });
+  classPreviewMarker = L.marker([place.latitude, place.longitude], { icon: icon, interactive: false }).addTo(map);
+  map.flyTo([place.latitude, place.longitude], Math.max(map.getZoom(), 16));
+}
+
+function clearClassPreview() {
+  if (classPreviewMarker) {
+    map.removeLayer(classPreviewMarker);
+    classPreviewMarker = null;
+  }
 }
 
 // 图例里的每一类：type 对应 data.json 里的 type（宿舍用 'dorm'）

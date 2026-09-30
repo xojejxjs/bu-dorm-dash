@@ -190,43 +190,190 @@ main {
   margin: 8px 0 0;
 }
 
-.class-item {
+/* 每门课一张卡片。左边的色条表示状态：黑 = 已确定，橙 = 需要确认，灰 = 跳过 */
+.class-card {
+  position: relative;
   font-size: 14px;
   padding: 8px 10px;
   margin-bottom: 8px;
   border: 1px solid #e2e2e2;
   border-left: 4px solid #222;
   border-radius: 8px;
+  list-style: none;
+}
+
+.class-card.review,
+.class-card.editing[data-mode="review"] {
+  border-left-color: #e8a200;
+  background: #fffaf0;
+}
+
+.class-card.skipped {
+  border-left-color: #bbb;
+  color: #888;
+}
+
+.class-card strong {
+  display: block;
+}
+
+.card-note {
+  font-size: 13px;
+  color: #444;
+  margin: 6px 0;
+}
+
+/* 状态标签 */
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+}
+
+.badge-schedule { background: #e8eefc; color: #1a3d8f; }
+.badge-user     { background: #e6f4ea; color: #1e6b34; }
+.badge-review   { background: #ffecc2; color: #7a4f00; }
+
+/* 顶部的提示：有几门课需要确认 */
+.review-banner {
+  font-size: 13px;
+  font-weight: bold;
+  color: #7a4f00;
+  background: #ffecc2;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+
+/* 主要按钮（Review / Confirm）：实心、醒目 */
+.primary-button {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  color: white;
+  background: #1558c0;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.primary-button:disabled {
+  background: #cfd6e0;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+/* 次要操作（Skip / Cancel / Edit / Restore）：只是一行小字链接，不和主要按钮抢注意力 */
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  color: #555;
+  text-decoration: underline;
   cursor: pointer;
 }
 
-.class-item:hover {
-  border-color: #222;
+.edit-button {
+  position: absolute;
+  top: 8px;
+  right: 10px;
 }
 
-/* 没有地点的课：虚线边框，表示"还没放到地图上" */
-.unlocated-title {
-  font-size: 14px;
-  margin: 16px 0 2px;
-}
-
-.unlocated-item {
-  font-size: 14px;
-  padding: 8px 10px;
-  margin-bottom: 8px;
-  border: 1px dashed #bbb;
-  border-radius: 8px;
-}
-
-.unlocated-actions {
+.secondary-actions {
   display: flex;
-  gap: 6px;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+/* 地点选项：每个选项一个可点的方框，写清楚是哪栋楼、地址、为什么推荐 */
+.location-option {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px;
+  margin: 6px 0;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.location-option:has(input[type="radio"]:checked) {
+  border-color: #1558c0;
+  box-shadow: 0 0 0 1px #1558c0;
+}
+
+.location-option input[type="radio"] {
+  width: auto;
+  margin-top: 3px;
+}
+
+.location-option .other-location {
   margin-top: 6px;
 }
 
-.unlocated-actions input {
-  flex: 1;
-  min-width: 0;
+.option-note {
+  display: block;
+  font-size: 12px;
+  color: #666;
+}
+
+.skipped-list {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.skipped-list summary {
+  cursor: pointer;
+  color: #555;
+}
+
+/* 确认 / 跳过之后的提示条，带 Undo */
+.toast {
+  margin-top: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: white;
+  background: #333;
+  border-radius: 6px;
+}
+
+.toast .link-button {
+  color: #9cc8ff;
+  margin-left: 6px;
+}
+
+/* 地图上"我的课"的标签："CAS · 3 classes"，颜色和列表里的卡片一致 */
+.class-label {
+  display: inline-block;
+  transform: translate(-50%, -50%); /* 让标签的中心对准楼的位置 */
+  white-space: nowrap;
+  padding: 3px 8px;
+  border: 2px solid white;
+  border-radius: 12px;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* 列表卡片里楼名前的小圆点，颜色和地图上的标签一致 */
+.color-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
 }
 
 /* 地图上"我的课"的标记：深色圆圈里写这栋楼有几门课 */
@@ -249,6 +396,13 @@ main {
   justify-content: center;
   font-weight: bold;
   font-size: 14px;
+}
+
+/* 预览标记：空心、虚线、问号，表示"还没确认" */
+.class-pin-preview {
+  background: white;
+  color: #1558c0;
+  border: 3px dashed #1558c0;
 }
 
 .placeholder {

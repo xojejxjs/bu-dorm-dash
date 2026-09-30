@@ -27,7 +27,8 @@ async function readScheduleImage(file, onProgress) {
 
 // 去掉 OCR 的"杂质"：课表格子右上角的小黑方块 ■ 常被认成 "[]"、"|" 之类的符号
 function cleanText(text) {
-  return text.replace(/[\[\]■□|{}]+/g, ' ').replace(/\s+/g, ' ').trim();
+  // 课表格子角上的小黑方块，OCR 可能认成 [] ■ | {} ®  ©，都去掉
+  return text.replace(/[\[\]■□|{}®©]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 // 把 Tesseract 的结果摊平成"文字片段"的数组

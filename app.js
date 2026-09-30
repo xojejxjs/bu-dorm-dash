@@ -535,6 +535,11 @@ function renderSearchOptions(dorms) {
 function findPlace(index, query, allowPartial = true) {
   const q = query.trim().toLowerCase(); // 去掉首尾空格、统一小写，"warren " 也能找到 "Warren"
 
+  // 空的输入什么都不匹配（否则 "".includes 永远成立，会匹配到列表里第一个地点）
+  if (q === '') {
+    return undefined;
+  }
+
   const exact = index.find(function (entry) {
     return entry.label.toLowerCase() === q;
   });
@@ -573,6 +578,9 @@ let currentSchedule = { located: [], unlocated: [] };
 // 支持 "CAS 211"（楼宇代码 + 教室）或者地点名 "GSU"、"Mugar"
 // 输出：{ place, code, room }；找不到时是 null
 function resolveClassLocation(text, placeIndex) {
+  if (text.trim() === '') {
+    return null; // 没填就点了 Add：不能当成"找到了"
+  }
   const classroom = parseClassroom(text);
   if (classroom) {
     const building = findPlace(placeIndex, classroom.code, false);
@@ -668,7 +676,9 @@ function showSchedule(schedule, placeIndex) {
       const text = item.querySelector('.unlocated-input').value;
       const found = resolveClassLocation(text, placeIndex);
       if (!found) {
-        item.querySelector('.search-message').textContent = `Can't find "${text}". Try a building code like CAS 211.`;
+        item.querySelector('.search-message').textContent = text.trim() === ''
+          ? 'Type a location first, e.g. CAS 211 — or press Skip.'
+          : `Can't find "${text}". Try a building code like CAS 211.`;
         return;
       }
       const c = currentSchedule.unlocated.splice(index, 1)[0];

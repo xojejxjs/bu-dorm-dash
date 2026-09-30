@@ -37,42 +37,101 @@ function cleanText(text) {
 // 同一个格子里的单词挨得很近，不同列之间有一大段空白。所以按单词之间的空隙把一行切开，
 // 每一段就是一个格子里的一行文字，并记下它的位置（用来判断在哪一列、哪一天）
 function flattenOcrLines(data) {
-  const segments = [];
-
+  // 先把 OCR 的每一行和它的单词取出来
+  const rawLines = [];
   (data.blocks || []).forEach(function (block) {
     (block.paragraphs || []).forEach(function (paragraph) {
       (paragraph.lines || []).forEach(function (line) {
-        const words = (line.words || []).filter(function (w) { return w.text.trim() !== ''; });
-        const height = line.bbox.y1 - line.bbox.y0;
-        const y = (line.bbox.y0 + line.bbox.y1) / 2;
-
-        // 这一行没有单词位置：整行当一个片段
-        if (words.length === 0) {
-          segments.push(makeSegment(line.text, line.bbox.x0, line.bbox.x1, y, height, []));
-          return;
-        }
-
-        // 两个单词之间的空隙超过 1.5 倍行高（正常字间距的好几倍），就认为跨到了另一个格子，从这里切开
-        const gapLimit = Math.max(height * 1.5, 20);
-        let current = [words[0]];
-        for (let i = 1; i < words.length; i++) {
-          const gap = words[i].bbox.x0 - words[i - 1].bbox.x1;
-          if (gap > gapLimit) {
-            segments.push(segmentFromWords(current, y, height));
-            current = [];
-          }
-          current.push(words[i]);
-        }
-        segments.push(segmentFromWords(current, y, height));
+        rawLines.push({
+          text: line.text,
+          bbox: line.bbox,
+          y: (line.bbox.y0 + line.bbox.y1) / 2,
+          height: line.bbox.y1 - line.bbox.y0,
+          words: (line.words || []).filter(function (w) { return w.text.trim() !== ''; })
+        });
       });
     });
   });
 
   // 没有位置信息（比如旧版本的 Tesseract）：退回到纯文字，按换行拆开
-  if (segments.length === 0 && data.text) {
-    return textToLines(data.text);
+  if (rawLines.length === 0) {
+    return data.text ? textToLines(data.text) : [];
   }
+
+  // 第一遍：按单词之间的大空隙切开（主要是为了先找到表头的日期）
+  const byGaps = splitLinesByGaps(rawLines);
+
+  // 第二遍：如果找到了表头日期，就按日期所在的列来切，比猜空隙大小可靠得多
+  const dayColumns = findDayColumns(byGaps);
+  const segments = dayColumns.length >= 2 ? splitLinesByColumns(rawLines, dayColumns) : byGaps;
+
   return segments.filter(function (s) { return s.text !== ''; });
+}
+
+// 按空隙切：两个单词之间的空隙超过 1.5 倍行高（正常字间距的好几倍），就认为跨到了另一个格子
+function splitLinesByGaps(rawLines) {
+  const segments = [];
+  rawLines.forEach(function (line) {
+    if (line.words.length === 0) {
+      segments.push(makeSegment(line.text, line.bbox.x0, line.bbox.x1, line.y, line.height, []));
+      return;
+    }
+    const gapLimit = Math.max(line.height * 1.5, 20);
+    let current = [line.words[0]];
+    for (let i = 1; i < line.words.length; i++) {
+      const gap = line.words[i].bbox.x0 - line.words[i - 1].bbox.x1;
+      if (gap > gapLimit) {
+        segments.push(segmentFromWords(current, line.y, line.height));
+        current = [];
+      }
+      current.push(line.words[i]);
+    }
+    segments.push(segmentFromWords(current, line.y, line.height));
+  });
+  return segments;
+}
+
+// 按列切：相邻两个日期的中点就是两列的分界线；每个单词看它的中心落在哪一列
+// 第一列左边的内容（比如时间轴上的 "8 AM"）单独成一组，不会粘到课名上
+function splitLinesByColumns(rawLines, dayColumns) {
+  const xs = dayColumns.map(function (d) { return d.x; });
+  const halfWidth = (xs[1] - xs[0]) / 2;
+  // 分界线：[第一列左边界, 第1和第2列中点, ..., 最后一列右边界]
+  const borders = [xs[0] - halfWidth];
+  for (let i = 1; i < xs.length; i++) {
+    borders.push((xs[i - 1] + xs[i]) / 2);
+  }
+  borders.push(xs[xs.length - 1] + halfWidth);
+
+  // 两个单词之间的空白里，有没有一条列分界线（左右各留 8 像素误差）
+  // 分界线只会落在格子之间的空白里，不会落在一个单词中间，所以只在这种空白处切
+  function borderInGap(left, right) {
+    return borders.some(function (b) {
+      return b > left.bbox.x1 - 8 && b < right.bbox.x0 + 8;
+    });
+  }
+
+  const segments = [];
+  rawLines.forEach(function (line) {
+    if (line.words.length === 0) {
+      segments.push(makeSegment(line.text, line.bbox.x0, line.bbox.x1, line.y, line.height, []));
+      return;
+    }
+    let current = [line.words[0]];
+    for (let i = 1; i < line.words.length; i++) {
+      const left = line.words[i - 1];
+      const right = line.words[i];
+      const gap = right.bbox.x0 - left.bbox.x1;
+      // 切开的条件：空白里有列分界线（而且比正常字间距大一点），或者空白本身就特别大
+      if ((borderInGap(left, right) && gap > line.height * 0.3) || gap > line.height * 1.5) {
+        segments.push(segmentFromWords(current, line.y, line.height));
+        current = [];
+      }
+      current.push(right);
+    }
+    segments.push(segmentFromWords(current, line.y, line.height));
+  });
+  return segments;
 }
 
 function segmentFromWords(words, y, height) {
@@ -97,8 +156,14 @@ function textToLines(text) {
 // 时间，比如 "8:00 - 9:15 am"、"2:30-3:20 pm"
 const TIME_PATTERN = /(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2})\s*(am|pm)/i;
 
-// 课号，比如 "CDSDS 110 (LEC)"、"SHAHF 150 (IND)"
-const COURSE_PATTERN = /^([A-Z]{3,6})\s?(\d{3}[A-Z]?)\s*(?:\((\w{2,4})\))?/;
+// 课号，比如 "CDSDS 110 (LEC)"、"CASMA 123 LEC"、"CASCH 171 PLB"
+// BU 的课号是 5 个字母（学院 3 个 + 系 2 个，CAS + MA = CASMA），这样 "CAS 216" 这种教室不会被当成课号
+const COURSE_PATTERN = /^([A-Z]{5})\s?(\d{3}[A-Z]?)\s*(?:\(?([A-Z]{3})\)?)?/;
+
+// 课名前面可能粘上了左边时间轴的 "8 AM"、"PM"，去掉
+function cleanTitle(text) {
+  return text.replace(/^(\d{1,2}\s*)?(AM|PM)\b\s*/i, '').trim();
+}
 
 // 一段结尾的"楼宇代码 + 教室号"，比如 "... CAS B25A"、"... CDS 164"
 const LOCATION_PATTERN = /(?:^|\s)([A-Z]{2,4})\s+([A-Z]?\d{1,4}[A-Z]?)\s*$/;
@@ -106,6 +171,72 @@ const LOCATION_PATTERN = /(?:^|\s)([A-Z]{2,4})\s+([A-Z]?\d{1,4}[A-Z]?)\s*$/;
 // 日历表头的日期，比如 "SEP 28"，或星期 "MON"
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 const WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+
+// ===== 找楼：先按楼宇代码，找不到再按地址 =====
+
+// 把地址文字拆成 { from, to, street }，比如 "685-725 Comm Ave CAS 211" → { 685, 725, 'commonwealth ave' }
+// 缩写统一成同一种写法，这样 "Comm Ave"、"Commonwealth Avenue" 都能和 data.json 里的地址对上
+function parseAddress(text) {
+  let t = text.toLowerCase().replace(/[–—]/g, '-');
+  t = t.replace(/\bcomm\.?\s+ave\.?/g, 'commonwealth ave')
+    .replace(/\bavenue\b/g, 'ave')
+    .replace(/\bstreet\b/g, 'st')
+    .replace(/\broad\b/g, 'rd')
+    .replace(/\./g, '');
+  const m = t.match(/(\d+)(?:\s*-\s*(\d+))?\s+([a-z'’]+(?:\s+[a-z'’]+)*?)\s+(ave|st|rd|way|mall|dr|blvd)\b/);
+  if (!m) {
+    return null;
+  }
+  return { from: Number(m[1]), to: Number(m[2] || m[1]), street: m[3] + ' ' + m[4] };
+}
+
+// 按地址找楼：同一条街、门牌号范围有重叠就算对上
+// 有好几个对上时（比如 "685-725 Comm Ave" 同时包括 CAS 的 725 和 Warren 的 700），
+// 优先教学楼，再优先门牌号正好是范围两端的那个
+function findPlaceByAddress(text, placeIndex) {
+  const target = parseAddress(text);
+  if (!target) {
+    return undefined;
+  }
+  const seen = new Set();
+  const candidates = [];
+  placeIndex.forEach(function (entry) {
+    const place = entry.place;
+    if (seen.has(place.id) || !place.address) {
+      return;
+    }
+    seen.add(place.id);
+    const address = parseAddress(place.address);
+    if (address && address.street === target.street &&
+        address.from <= target.to && target.from <= address.to) {
+      const score = (place.type === 'academic' ? 0 : 10) +
+        (address.from === target.from || address.to === target.to ? 0 : 1);
+      candidates.push({ place: place, score: score });
+    }
+  });
+  candidates.sort(function (a, b) { return a.score - b.score; });
+  return candidates.length > 0 ? candidates[0].place : undefined;
+}
+
+// 判断一段文字是不是"上课地点"，是的话认出是哪栋楼
+// 输出：{ place, code, room }；不是地点时返回 null
+function matchLocation(text, placeIndex) {
+  // 1. 结尾是"楼宇代码 + 教室号"，而且代码在我们的代码表里：最准确
+  const m = text.match(LOCATION_PATTERN);
+  if (m) {
+    const place = findPlace(placeIndex, m[1].toUpperCase(), false);
+    if (place) {
+      return { place: place, code: m[1].toUpperCase(), room: m[2].toUpperCase() };
+    }
+  }
+  // 2. 代码认不出（比如 OCR 把 CAS 认错了）：按地址找
+  const byAddress = findPlaceByAddress(text, placeIndex);
+  if (byAddress) {
+    const room = text.match(/\s([A-Z]?\d{1,4}[A-Z]?)\s*$/);
+    return { place: byAddress, code: byAddress.code || '', room: room ? room[1].toUpperCase() : '' };
+  }
+  return null;
+}
 
 // 统一时间的写法："2:30-3:20 pm" 和 "2:30 - 3:20 pm" 当成同一个，方便合并
 function normalizeTime(match) {
@@ -186,13 +317,9 @@ function parseSchedule(segments, placeIndex) {
   const usedCourses = new Set(); // 已经和某个地点配上对的课号片段，第二轮不再重复找
 
   segments.forEach(function (segment, i) {
-    const location = segment.text.match(LOCATION_PATTERN);
+    // 这一段是不是上课地点：先按楼宇代码认，认不出再按地址认
+    const location = matchLocation(segment.text, placeIndex);
     if (!location) {
-      return;
-    }
-    const code = location[1].toUpperCase();
-    const place = findPlace(placeIndex, code, false); // 只认我们代码表里有的楼
-    if (!place) {
       return;
     }
 
@@ -202,7 +329,7 @@ function parseSchedule(segments, placeIndex) {
     let section = '';
     let title = '';
     for (const above of neighborsInCell(segments, i, -1)) {
-      if (LOCATION_PATTERN.test(above.text) && findPlace(placeIndex, above.text.match(LOCATION_PATTERN)[1], false)) {
+      if (matchLocation(above.text, placeIndex)) {
         break; // 已经到了上一门课
       }
       const timeMatch = above.text.match(TIME_PATTERN);
@@ -214,7 +341,7 @@ function parseSchedule(segments, placeIndex) {
         section = courseMatch[3] || '';
         usedCourses.add(above);
       } else if (!title && course) {
-        title = above.text;
+        title = cleanTitle(above.text);
       }
     }
 
@@ -224,9 +351,9 @@ function parseSchedule(segments, placeIndex) {
       course: course,
       section: section,
       time: time,
-      code: code,
-      room: location[2].toUpperCase(),
-      place: place,
+      code: location.code,
+      room: location.room,
+      place: location.place,
       days: day ? [day] : []
     });
   });
@@ -260,7 +387,7 @@ function parseSchedule(segments, placeIndex) {
   const unlocated = [];
   segments.forEach(function (segment, i) {
     const courseMatch = segment.text.match(COURSE_PATTERN);
-    if (!courseMatch || usedCourses.has(segment)) {
+    if (!courseMatch || usedCourses.has(segment) || matchLocation(segment.text, placeIndex)) {
       return;
     }
     const course = courseMatch[1] + ' ' + courseMatch[2];
@@ -280,7 +407,7 @@ function parseSchedule(segments, placeIndex) {
     const timeMatch = below ? below.text.match(TIME_PATTERN) : null;
 
     unlocated.push({
-      title: above ? above.text : course,
+      title: above ? cleanTitle(above.text) : course,
       course: course,
       section: section,
       time: timeMatch ? normalizeTime(timeMatch) : ''

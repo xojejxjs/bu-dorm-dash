@@ -122,9 +122,11 @@ let routeLine = null;
 // 输出：地图上出现一条虚线，并缩放到能看到两个点
 // 输入：起点、终点、结论，以及可选的 path（后端返回的沿街道路线）
 // 有 path：画实线，沿着街道走；没有 path：画虚线直线，只表示方向
-// 路线统一用一种颜色：深靛蓝，在米色建筑、黄色道路、绿色公园、蓝色河流上都看得清
+// 路线统一用导航软件那种风格：亮蓝色主线 + 深蓝色边框
+// 深蓝边框把路线和米色建筑、黄色道路、绿色公园都隔开，在哪种背景上都看得清
 // 结论（🟢🟡🔴）只显示在左侧结果框里，不再用路线颜色表示
-const ROUTE_COLOR = '#1a1f71';
+const ROUTE_COLOR = '#4a9dff';        // 主线：亮蓝色
+const ROUTE_BORDER_COLOR = '#1558c0'; // 边框：深蓝色
 
 function drawRouteLine(fromPlace, toPlace, verdict, path) {
   clearRouteLine();
@@ -135,8 +137,8 @@ function drawRouteLine(fromPlace, toPlace, verdict, path) {
     : [[fromPlace.latitude, fromPlace.longitude], [toPlace.latitude, toPlace.longitude]];
   const dash = (path && path.length > 1) ? null : '8 10';
 
-  // 描边技巧：底下一条更宽的白线，上面一条深色线。白边把路线和任何颜色的背景隔开
-  const casing = L.polyline(points, { color: 'white', weight: 9, opacity: 0.9, dashArray: dash });
+  // 描边技巧：底下一条更宽的深蓝线当边框，上面一条亮蓝线当主线
+  const casing = L.polyline(points, { color: ROUTE_BORDER_COLOR, weight: 9, opacity: 1, dashArray: dash });
   const line = L.polyline(points, { color: ROUTE_COLOR, weight: 5, opacity: 1, dashArray: dash });
 
   // featureGroup：把两条线当成一个整体，一起添加、一起删除，还能一起算范围

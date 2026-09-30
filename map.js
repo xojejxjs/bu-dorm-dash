@@ -117,39 +117,30 @@ function addBuildingMarkers(buildings) {
 // 当前画在地图上的路线。一次只保留一条，所以用一个变量记住它，下次画之前先删掉
 let routeLine = null;
 
-// 在地图上画 A → B 的连线，颜色跟结论一致
+// 在地图上画 A → B 的路线（统一一种醒目的颜色）
 // 输入：起点对象、终点对象、结论（'green' / 'yellow' / 'red'）
 // 输出：地图上出现一条虚线，并缩放到能看到两个点
 // 输入：起点、终点、结论，以及可选的 path（后端返回的沿街道路线）
 // 有 path：画实线，沿着街道走；没有 path：画虚线直线，只表示方向
+// 路线统一用一种颜色：深靛蓝，在米色建筑、黄色道路、绿色公园、蓝色河流上都看得清
+// 结论（🟢🟡🔴）只显示在左侧结果框里，不再用路线颜色表示
+const ROUTE_COLOR = '#1a1f71';
+
 function drawRouteLine(fromPlace, toPlace, verdict, path) {
   clearRouteLine();
 
-  const lineColors = {
-    green: '#1e8e3e',
-    yellow: '#e8a200',
-    red: '#d93025'
-  };
+  // 有 path：沿街道的实线；没有：起点到终点的直线，用虚线表示"这不是真实路线"
+  const points = (path && path.length > 1)
+    ? path
+    : [[fromPlace.latitude, fromPlace.longitude], [toPlace.latitude, toPlace.longitude]];
+  const dash = (path && path.length > 1) ? null : '8 10';
 
-  if (path && path.length > 1) {
-    routeLine = L.polyline(path, {
-      color: lineColors[verdict],
-      weight: 5,
-      opacity: 0.85
-    }).addTo(map);
-  } else {
-    routeLine = L.polyline(
-      [
-        [fromPlace.latitude, fromPlace.longitude],
-        [toPlace.latitude, toPlace.longitude]
-      ],
-      {
-        color: lineColors[verdict],
-        weight: 4,
-        dashArray: '8 8' // 虚线：提醒用户这不是真实的步行路线
-      }
-    ).addTo(map);
-  }
+  // 描边技巧：底下一条更宽的白线，上面一条深色线。白边把路线和任何颜色的背景隔开
+  const casing = L.polyline(points, { color: 'white', weight: 9, opacity: 0.9, dashArray: dash });
+  const line = L.polyline(points, { color: ROUTE_COLOR, weight: 5, opacity: 1, dashArray: dash });
+
+  // featureGroup：把两条线当成一个整体，一起添加、一起删除，还能一起算范围
+  routeLine = L.featureGroup([casing, line]).addTo(map);
 
   // 自动缩放，让整条线都在视野里；padding 留出边距，点不会贴着地图边缘
   map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });

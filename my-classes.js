@@ -599,7 +599,16 @@ async function handleClassScan(file) {
     return;
   }
   const result = await readOneFile(file, 1, 1);
-  const found = !result.error && result.located.find(function (c) { return sameMeeting(c, item); });
+  let found = !result.error && result.located.find(function (c) { return sameMeeting(c, item); });
+
+  // 课号、时间都对上了，但那门课旁边没写教室：如果整个文件里只出现了一个地址 / 教室，就用它（仍然要用户确认）
+  if (!found && !result.error) {
+    const sameOne = result.unlocated.find(function (c) { return sameMeeting(c, item); });
+    const locations = result.fileLocations || [];
+    if (sameOne && locations.length === 1) {
+      found = locations[0];
+    }
+  }
 
   if (found) {
     item.scanSuggestion = { place: found.place, room: found.room };

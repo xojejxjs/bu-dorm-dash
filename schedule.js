@@ -520,6 +520,19 @@ function neighborsInCell(segments, index, direction) {
     .slice(0, 4);
 }
 
+// 某个片段下面的所有片段（同一列），从近到远；没有位置的文字就是后面的行
+function segmentsBelow(segments, index) {
+  const self = segments[index];
+  if (self.x === null) {
+    return segments.slice(index + 1, index + 12);
+  }
+  return segments
+    .filter(function (other) {
+      return other.x0 < self.x1 && other.x1 > self.x0 && other.y > self.y && other.y - self.y < self.h * 15;
+    })
+    .sort(function (a, b) { return a.y - b.y; });
+}
+
 // 这个片段在星期几：看它的横坐标离哪个表头日期最近
 function dayOf(segment, dayColumns) {
   if (dayColumns.length === 0 || segment.x === null) {
@@ -591,6 +604,18 @@ function parseBlocks(segments, placeIndex, knownCourses) {
         location = findLocation(text, placeIndex);
       }
     });
+    // 附近几行没有地点：继续往下找，直到下一门课开始（有的课表把地址放得比较远）
+    if (!location) {
+      for (const s of segmentsBelow(segments, i)) {
+        if (isAnchor(s)) {
+          break;
+        }
+        location = findLocation(s.text, placeIndex);
+        if (location) {
+          break;
+        }
+      }
+    }
     if (days.length === 0) {
       const day = dayOf(segment, dayColumns);
       if (day) {
@@ -639,6 +664,9 @@ function parseLabeled(rows, placeIndex, knownCourses) {
   rows.forEach(function (row) {
     const label = row.match(LABEL);
     if (!label) {
+      if (current && !findCourse(row, knownCourses)) {
+        current.otherRows.push(row);
+      }
       // 别的标签行（比如 "Class Notes: ... MA123 ..."）里的课号只是提到，不是一门新课
       if (/^[A-Z][A-Za-z ]{1,25}:\s/.test(row)) {
         return;
@@ -650,7 +678,8 @@ function parseLabeled(rows, placeIndex, knownCourses) {
           course: found.course,
           title: cleanTitle(row.slice(0, found.index)) || found.course,
           section: parseType(row.slice(found.index + found.length)),
-          fields: {}
+          fields: {},
+          otherRows: [] // 不带 "Room:" 这种标签的行：有的课表只写地址，没有标签
         };
         entries.push(current);
       }
@@ -694,7 +723,17 @@ function parseLabeled(rows, placeIndex, knownCourses) {
     }
 
     // 教室也是一列一个："675 Commonwealth Ave STO B50   No room assigned"
-    const rooms = extractRooms(f.room || f.location || '', placeIndex);
+    let rooms = extractRooms(f.room || f.location || '', placeIndex);
+    // 没有 "Room:" 标签（或者里面认不出楼）：在这门课的其他行里找地址或"楼宇代码 + 教室"
+    if (rooms.filter(function (r) { return r.place; }).length === 0) {
+      for (const row of entry.otherRows) {
+        const location = findLocation(row.replace(/^[A-Z][A-Za-z ]{1,25}:\s*/, ''), placeIndex);
+        if (location && location.place) {
+          rooms = [location];
+          break;
+        }
+      }
+    }
     patterns.forEach(function (p, k) {
       meetings.push({
         title: entry.title,
@@ -799,7 +838,22 @@ function parseSchedule(segments, placeIndex, knownCourses) {
   const meetings = labelRows >= 2
     ? parseLabeled(rows, placeIndex, knownCourses || [])
     : parseBlocks(segments, placeIndex, knownCourses || []);
-  return buildResult(meetings);
+  const result = buildResult(meetings);
+  result.fileLocations = findAllLocations(rows, placeIndex);
+  return result;
+}
+
+// 文件里出现过的所有地点，按楼 + 教室去重
+// 输出：[{ place, code, room }]
+function findAllLocations(rows, placeIndex) {
+  const found = [];
+  rows.forEach(function (row) {
+    const location = findLocation(row.replace(/^[A-Z][A-Za-z ]{1,25}:\s*/, ''), placeIndex);
+    if (location && location.place && !found.some(function (f) { return f.place.id === location.place.id && f.room === location.room; })) {
+      found.push(location);
+    }
+  });
+  return found;
 }
 
 console.log('schedule.js loaded');

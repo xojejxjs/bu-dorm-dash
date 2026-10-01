@@ -127,7 +127,7 @@ function classToSaved(c) {
     title: c.title, course: c.course, section: c.section,
     start: c.start, end: c.end, time: c.time, days: c.days,
     placeId: c.place ? c.place.id : null, code: c.code, room: c.room, noRoom: c.noRoom,
-    status: c.status, source: c.source, statusBeforeSkip: c.statusBeforeSkip || null,
+    status: c.status, source: c.source, statusBeforeSkip: c.statusBeforeSkip || null, sample: Boolean(c.sample),
     suggestion: c.scanSuggestion ? { placeId: c.scanSuggestion.place.id, room: c.scanSuggestion.room } : null
   };
 }
@@ -154,7 +154,8 @@ function savedToClass(s, placeIndex) {
     source: s.source || null,
     statusBeforeSkip: s.statusBeforeSkip || undefined,
     scanSuggestion: suggested ? { place: suggested, room: s.suggestion.room || '' } : null,
-    scanMessage: ''
+    scanMessage: '',
+    sample: Boolean(s.sample)
   };
 }
 
@@ -183,6 +184,70 @@ function loadSavedClasses(placeIndex) {
     console.log("Couldn't read saved classes:", error);
     return [];
   }
+}
+
+// ===== 示例课表 =====
+//
+// 给手边没有课表的人试用（比如活动现场扫码打开的人）
+// 课是虚构的，但楼和教室是真的；特意安排了能展示三个功能的情况：
+//   有好几栋楼 → 地图上看分布；有一门没写教室 → 展示"需要确认"；
+//   Chemistry（SCI）10:45 下课，Hospitality（SHA）11:00 上课 → 15 分钟走不到，展示"课间来不及"
+// 用 .ics 的格式写，和用户导入 BU 日历文件走同一条路，所以示例能证明真实流程也是好的
+const SAMPLE_EVENTS = [
+  ['CASMA 123', 'Calculus I', 'MO,WE,FR', '0905', '0955', '111 Cummington Mall MCS B37'],
+  ['CASWR 120', 'Writing Seminar', 'MO,WE,FR', '1010', '1100', '685-725 Comm Ave CAS 214'],
+  ['CASCH 101', 'General Chemistry', 'TU,TH', '0930', '1045', '590 Comm Ave SCI 107'],
+  ['SHAHF 100', 'Intro to Hospitality', 'TU,TH', '1100', '1215', '928 Commonwealth Ave SHA 110'],
+  ['CDSDS 110', 'Intro to Data Science', 'MO,WE,FR', '1325', '1415', '665 Comm Ave CDS 164'],
+  ['CASPS 101', 'Intro to Psychology', 'FR', '1535', '1625', '']
+];
+
+function sampleIcs() {
+  const lines = ['BEGIN:VCALENDAR'];
+  SAMPLE_EVENTS.forEach(function (e) {
+    lines.push('BEGIN:VEVENT', 'SUMMARY:' + e[0], 'DESCRIPTION:' + e[1],
+      'RRULE:FREQ=WEEKLY;BYDAY=' + e[2],
+      'DTSTART;TZID=America/New_York:20260902T' + e[3] + '00',
+      'DTEND;TZID=America/New_York:20260902T' + e[4] + '00',
+      'LOCATION:' + e[5], 'END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+
+// 点 "Try a sample schedule"：导入示例课，然后在 Route check 里填好"课间来不及"的那两节课
+function loadSampleSchedule() {
+  const result = parseIcs(sampleIcs(), myClasses.placeIndex, []);
+  result.located.concat(result.unlocated).forEach(function (c) { c.sample = true; });
+  addParsedSchedule(result);
+  fillSampleRoute();
+}
+
+// 在 Route check 里填好示例中"课间来不及"的两节课：Chemistry（SCI）10:45 下课 → Hospitality（SHA）11:00 上课
+function fillSampleRoute() {
+  const chem = myClasses.items.find(function (c) { return c.course === 'CASCH 101'; });
+  const hosp = myClasses.items.find(function (c) { return c.course === 'SHAHF 100'; });
+  if (chem && hosp) {
+    const from = document.getElementById('from-input');
+    const to = document.getElementById('to-input');
+    from.value = myClassLabel(chem);
+    to.value = myClassLabel(hosp);
+    document.getElementById('gap-input').value = 15; // 10:45 下课 → 11:00 上课
+    // 和用户自己选完一样，让 app.js 去算路线
+    from.dispatchEvent(new Event('change'));
+    to.dispatchEvent(new Event('change'));
+  }
+}
+
+// 示例提示条上的按钮：填好路线，并滚到结果（手机上路线检查在很下面）
+function showSampleRoute() {
+  fillSampleRoute();
+  document.getElementById('route-result').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// 用户导入自己的课表时，先把示例课拿掉，免得混在一起
+function removeSampleClasses() {
+  myClasses.items = myClasses.items.filter(function (c) { return !c.sample; });
 }
 
 // ===== 状态变化 =====
@@ -274,6 +339,9 @@ function renderMyClasses() {
   const list = document.getElementById('schedule-list');
   const status = document.getElementById('schedule-status');
 
+  // 已经有课了，就不需要"试试示例"按钮
+  document.getElementById('sample-row').hidden = items.length > 0;
+
   // 排序：同一门课的不同时段（lecture、discussion…）放在一起
   const confirmed = items.filter(function (c) { return c.status === 'confirmed'; }).sort(compareMeetings);
   const review = items.filter(function (c) { return c.status === 'guess' || c.status === 'none'; }).sort(compareMeetings);
@@ -301,6 +369,13 @@ function renderMyClasses() {
     'Each label on the map shows a building and how many of your classes meet there.';
 
   let html = renderSelectToolbar(review.length + confirmed.length);
+
+  // 正在看示例：说清楚这些课是虚构的，以及怎么换成自己的
+  if (items.some(function (c) { return c.sample; })) {
+    html += `<div class="sample-banner">👀 This is a <strong>made-up sample schedule</strong>.
+      Add your own schedule above and it replaces the sample.
+      <button type="button" class="small-button" data-action="sample-route">Can I walk from Chemistry to Hospitality in 15 min?</button></div>`;
+  }
 
   // 1. 需要确认的放最上面，并有一个醒目的提示
   if (review.length > 0) {
@@ -677,6 +752,11 @@ function handleListClick(event) {
     return;
   }
 
+  if (action === 'sample-route') {
+    showSampleRoute();
+    return;
+  }
+
   // 提示条上的"再传一张截图"：不属于某一门课，打开普通的上传框
   if (action === 'scan-all') {
     document.getElementById('schedule-file').click();
@@ -792,6 +872,7 @@ async function readOneFile(file, number, total) {
 // 上传了一个或多个文件：一个一个读，结果合并进列表
 async function handleScheduleFiles(files) {
   const status = document.getElementById('schedule-status');
+  removeSampleClasses();
   const hadClasses = myClasses.items.length > 0;
   // 记下读之前的样子：如果新文件自动补上了地点，用户可以 Undo
   const before = myClasses.items.map(function (item) {
@@ -898,8 +979,11 @@ function initMyClasses(placeIndex) {
 
   document.getElementById('schedule-text-button').addEventListener('click', function () {
     const text = document.getElementById('schedule-text').value;
+    removeSampleClasses();
     addParsedSchedule(parseSchedule(textToLines(text), placeIndex, knownCourses()));
   });
+
+  document.getElementById('sample-button').addEventListener('click', loadSampleSchedule);
 
   const list = document.getElementById('schedule-list');
   list.addEventListener('click', handleListClick);

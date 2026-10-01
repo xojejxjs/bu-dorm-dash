@@ -540,6 +540,15 @@ main {
 }
 
 /* 地图上"我的课"的标记：深色圆圈里写这栋楼有几门课 */
+/* 和别的标签重叠时：缩成一个同色小圆点，不显示文字（放大地图后会变回完整标签） */
+.class-label.compact {
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  border-radius: 50%;
+  font-size: 0;
+}
+
 .class-pin-wrapper {
   background: none;
   border: none;
@@ -600,6 +609,7 @@ main {
 .legend-title {
   font-weight: bold;
   margin-bottom: 2px;
+  cursor: pointer;
 }
 
 /* 图例每一行：勾选框 + 圆点 + 文字，整行都可以点 */
@@ -654,4 +664,36 @@ main {
 
 .saved-note .link-button {
   color: #c62828;
+}
+
+/* ===== 示例课表 ===== */
+.sample-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 13px;
+  color: #666;
+}
+
+/* display: flex 会盖过 hidden 属性，要再写一次"隐藏时不显示" */
+.sample-row[hidden] {
+  display: none;
+}
+
+.sample-banner {
+  margin: 8px 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #e8f1ff;
+  color: #1a3d73;
+  font-size: 13px;
+}
+
+.sample-banner .small-button {
+  display: block;
+  margin-top: 6px;
+  white-space: normal;
+  text-align: left;
 }

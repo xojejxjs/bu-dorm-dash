@@ -9,7 +9,7 @@
   <!-- Leaflet 的样式文件，必须引入，否则地图显示会错乱 -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <link rel="stylesheet" href="style.css?v=2026-10-01a" />
+  <link rel="stylesheet" href="style.css?v=2026-10-01d" />
 </head>
 <body>
 
@@ -47,6 +47,12 @@
         <!-- accept：可以选图片、.ics、PDF、Word、文字；multiple：可以一次选多个 -->
         <input type="file" id="schedule-file" multiple
                accept="image/*,.ics,text/calendar,.pdf,application/pdf,.docx,.txt,text/plain">
+
+        <!-- 手边没有课表的人（比如活动现场）：用一份虚构的示例课表，10 秒体验所有功能 -->
+        <p class="sample-row" id="sample-row">
+          No schedule handy?
+          <button type="button" class="small-button" id="sample-button">Try a sample schedule</button>
+        </p>
 
         <!-- 隐藏的上传框：给"针对某一门课再传一个文件"用，由按钮触发 -->
         <input type="file" id="class-scan-file" hidden
@@ -128,16 +134,16 @@
 
   <!-- 我们自己的 JS，顺序很重要：被别人用的文件要先加载 -->
   <!-- ?v=版本号：每次更新网站时改这个号码，浏览器就会下载新文件，而不是继续用缓存里的旧文件 -->
-  <script>const APP_VERSION = '2026-10-01a';</script>
-  <script src="distance.js?v=2026-10-01a"></script>
-  <script src="geocode.js?v=2026-10-01a"></script>
-  <script src="route-api.js?v=2026-10-01a"></script>
-  <script src="schedule.js?v=2026-10-01a"></script>
-  <script src="schedule-import.js?v=2026-10-01a"></script>
-  <script src="course-guess.js?v=2026-10-01a"></script>
-  <script src="my-classes.js?v=2026-10-01a"></script>
-  <script src="map.js?v=2026-10-01a"></script>
-  <script src="app.js?v=2026-10-01a"></script>
+  <script>const APP_VERSION = '2026-10-01d';</script>
+  <script src="distance.js?v=2026-10-01d"></script>
+  <script src="geocode.js?v=2026-10-01d"></script>
+  <script src="route-api.js?v=2026-10-01d"></script>
+  <script src="schedule.js?v=2026-10-01d"></script>
+  <script src="schedule-import.js?v=2026-10-01d"></script>
+  <script src="course-guess.js?v=2026-10-01d"></script>
+  <script src="my-classes.js?v=2026-10-01d"></script>
+  <script src="map.js?v=2026-10-01d"></script>
+  <script src="app.js?v=2026-10-01d"></script>
 
 </body>
 </html>

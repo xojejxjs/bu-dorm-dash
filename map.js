@@ -272,7 +272,8 @@ function showClassMarkers(groups) {
     });
     const tooltip = `<strong>${group.place.name}</strong><br>${lines.join('<br>')}`;
 
-    L.marker([group.place.latitude, group.place.longitude], { icon: icon })
+    // classCount：标签挤在一起时，课多的楼优先显示完整标签
+    L.marker([group.place.latitude, group.place.longitude], { icon: icon, classCount: count, zIndexOffset: count * 100 })
       .bindTooltip(tooltip)
       .on('click', function () {
         highlightPlace(group.place);
@@ -284,7 +285,37 @@ function showClassMarkers(groups) {
   if (groups.length > 0) {
     map.fitBounds(classLayer.getBounds(), { padding: [60, 60], maxZoom: 17 });
   }
+  layoutClassLabels();
 }
+
+// 几栋楼离得很近（比如 CAS、CDS、MCS），或者手机屏幕小时，标签会叠在一起看不清
+// 办法：课多的楼先放完整标签；后面的如果会和已经放好的标签重叠，就缩成一个同色的小圆点
+// 放大地图后楼之间隔开了，圆点会自动变回完整标签。点圆点或者鼠标悬停，仍然能看到这栋楼的课
+function layoutClassLabels() {
+  const markers = classLayer.getLayers().slice().sort(function (a, b) {
+    return b.options.classCount - a.options.classCount;
+  });
+  const placed = []; // 已经放好的完整标签占的位置
+  markers.forEach(function (marker) {
+    const label = marker.getElement() && marker.getElement().querySelector('.class-label');
+    if (!label) {
+      return;
+    }
+    label.classList.remove('compact');
+    const box = label.getBoundingClientRect();
+    const overlaps = placed.some(function (other) {
+      return box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top;
+    });
+    if (overlaps) {
+      label.classList.add('compact');
+    } else {
+      placed.push(box);
+    }
+  });
+}
+
+// 缩放结束后重新排一次（放大时楼之间的距离变大，重叠可能消失）
+map.on('zoomend', layoutClassLabels);
 
 // 清掉"我的课"标记
 function clearClassMarkers() {
@@ -329,9 +360,11 @@ function addLegend() {
 
   // Leaflet 把图例放到地图上时，会调用 onAdd，要求返回一个 HTML 元素
   legend.onAdd = function () {
-    const box = L.DomUtil.create('div', 'map-legend');
+    // 用 <details>：点标题可以收起 / 展开。手机屏幕小，默认收起，免得挡住地图
+    const box = L.DomUtil.create('details', 'map-legend');
+    box.open = !window.matchMedia('(max-width: 768px)').matches;
 
-    let html = '<div class="legend-title">Show on map</div>';
+    let html = '<summary class="legend-title">Show on map</summary>';
     LEGEND_ITEMS.forEach(function (item) {
       const checked = visibleTypes.has(item.type) ? 'checked' : '';
       html += `

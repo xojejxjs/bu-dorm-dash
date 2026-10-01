@@ -636,7 +636,8 @@ function parseBlocks(segments, placeIndex, knownCourses) {
 }
 
 // 版面二：课程详情（"Days:"、"Start:"、"Room:" 这种带标签的）
-const LABEL = /^(Days|Meets|Start|End|Room|Section|Instructor|Dates|Location)\s*:\s*/i;
+// 标签可以出现在一行的中间：整页截图里，左边菜单的字（比如 "Enrollment"）会和弹窗里的 "Room:" 读成同一行
+const LABEL = /(?:^|\s)(Days|Meets|Start|End|Room|Section|Instructor|Dates|Location)\s*:\s*/i;
 
 // 把同一高度的片段拼回一行（有位置时）；没有位置的文字本来就是一行一行的
 function groupRows(segments) {
@@ -668,15 +669,15 @@ function parseLabeled(rows, placeIndex, knownCourses) {
         current.otherRows.push(row);
       }
       // 别的标签行（比如 "Class Notes: ... MA123 ..."）里的课号只是提到，不是一门新课
-      if (/^[A-Z][A-Za-z ]{1,25}:\s/.test(row)) {
+      if (/(?:^|\s)[A-Z][A-Za-z ]{1,25}:\s/.test(row) && !COURSE_CODE.test(row)) {
         return;
       }
+      // 详情页里只认完整课号（CASMA 123）；简写（MA123）一般只是在说明文字里提到
       const found = findCourse(row, knownCourses);
-      // 简写课号（MA 123）在详情页里只有和已知的课对上才算
-      if (found && (!found.short || knownCourses.includes(found.course))) {
+      if (found && !found.short) {
         current = {
           course: found.course,
-          title: cleanTitle(row.slice(0, found.index)) || found.course,
+          title: cleanTitle(row.slice(0, found.index).split('   ').pop()) || found.course,
           section: parseType(row.slice(found.index + found.length)),
           fields: {},
           otherRows: [] // 不带 "Room:" 这种标签的行：有的课表只写地址，没有标签
@@ -687,7 +688,7 @@ function parseLabeled(rows, placeIndex, knownCourses) {
     }
     const key = label[1].toLowerCase();
     if (current && !(key in current.fields)) {
-      current.fields[key] = row.slice(label[0].length);
+      current.fields[key] = row.slice(label.index + label[0].length); // 只要标签后面的内容，前面菜单的字不要
     }
   });
 
@@ -734,7 +735,8 @@ function parseLabeled(rows, placeIndex, knownCourses) {
         }
       }
     }
-    patterns.forEach(function (p, k) {
+    // 只用第一个（左边那一列）时段：右边的一般是附带的（比如每周四的考试），按你的要求不管它
+    patterns.slice(0, 1).forEach(function (p, k) {
       meetings.push({
         title: entry.title,
         course: entry.course,

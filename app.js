@@ -617,6 +617,8 @@ async function main() {
 
   // 我的课：上传截图、粘贴文字、确认 / 编辑（全部在 my-classes.js 里）
   initMyClasses(placeIndex);
+  // 课间步行分析：点一行 → 在 Route check 里显示这段路（my-week.js）
+  initClassWalks();
 
   ['from-input', 'to-input'].forEach(function (id) {
     const box = document.getElementById(id);

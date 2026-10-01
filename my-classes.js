@@ -334,15 +334,22 @@ function fillSampleRoute() {
   const chem = myClasses.items.find(function (c) { return c.course === 'CASCH 101'; });
   const hosp = myClasses.items.find(function (c) { return c.course === 'SHAHF 100'; });
   if (chem && hosp) {
-    const from = document.getElementById('from-input');
-    const to = document.getElementById('to-input');
-    from.value = myClassLabel(chem);
-    to.value = myClassLabel(hosp);
-    document.getElementById('gap-input').value = 15; // 10:45 下课 → 11:00 上课
-    // 和用户自己选完一样，让 app.js 去算路线
-    from.dispatchEvent(new Event('change'));
-    to.dispatchEvent(new Event('change'));
+    fillRouteCheck(chem, hosp, 15); // 10:45 下课 → 11:00 上课
   }
+}
+
+// 在 Route check 里填好"从哪门课 → 到哪门课"和课间分钟数，然后算路线、在地图上画线
+// 示例按钮和 "Your walks between classes" 的每一行（my-week.js）共用
+// 输入：前一节课、后一节课、课间分钟数
+function fillRouteCheck(fromClass, toClass, gapMinutes) {
+  const from = document.getElementById('from-input');
+  const to = document.getElementById('to-input');
+  from.value = myClassLabel(fromClass);
+  to.value = myClassLabel(toClass);
+  document.getElementById('gap-input').value = gapMinutes;
+  // 和用户自己选完一样，让 app.js 去算路线
+  from.dispatchEvent(new Event('change'));
+  to.dispatchEvent(new Event('change'));
 }
 
 // 示例提示条上的按钮：填好路线，并滚到结果（手机上路线检查在很下面）

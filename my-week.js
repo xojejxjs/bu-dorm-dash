@@ -6,6 +6,9 @@
 
 const LONG_BREAK_MINUTES = 60; // 课间超过这么久，就不算"赶课"，收进折叠区
 
+// 最近一次算出来的步行列表：点某一行时，按行上的编号（data-walk）找到是哪一段
+let shownWalks = [];
+
 // 找出一周里所有"相邻两节课"之间的步行
 // 输入：所有课（myClasses.items）
 // 输出：{ walks, checked, unchecked }
@@ -101,6 +104,7 @@ function walkRank(walk) {
 function renderClassWalks() {
   const box = document.getElementById('class-walks');
   const result = findClassWalks(myClasses.items);
+  shownWalks = result.walks;
 
   // 还没有课（或者全都跳过了）：什么都不显示
   if (result.checked.length === 0 && result.unchecked.length === 0) {
@@ -125,6 +129,7 @@ function renderClassWalks() {
   // 1. 要注意的：冲突、🔴、🟡、🟢（已经按这个顺序排好）
   if (urgent.length > 0) {
     html += '<ul class="walk-list">' + urgent.map(renderWalkRow).join('') + '</ul>';
+    html += '<p class="hint">Tap a walk to see the route on the map.</p>';
   }
 
   // 2. 课间很长的：不用赶，折叠起来
@@ -177,13 +182,40 @@ function renderWalkRow(walk) {
     detail = `${walk.gap} min break · ${walkText} · ${spareText(walk.gap - route.minutes)}`;
   }
 
-  return `
-    <li class="walk-row walk-${color}">
+  const content = `
       <span class="walk-when">${icon} ${escapeHtml(days)} · ${escapeHtml(when)}</span>
       <strong>${escapeHtml(from.title)} <span class="walk-where">${escapeHtml(classWhere(from))}</span></strong>
       <strong>→ ${escapeHtml(to.title)} <span class="walk-where">${escapeHtml(classWhere(to))}</span></strong>
-      <span class="walk-detail">${escapeHtml(detail)}</span>
-    </li>`;
+      <span class="walk-detail">${escapeHtml(detail)}</span>`;
+
+  // 时间冲突：没有课间可以走，不能点
+  if (walk.kind === 'clash') {
+    return `<li><div class="walk-row walk-${color}">${content}</div></li>`;
+  }
+  // 其他的做成按钮：点了在 Route check 里显示这段路（用 button，键盘 Tab + 回车也能用）
+  const index = shownWalks.indexOf(walk);
+  return `<li><button type="button" class="walk-row walk-${color}" data-walk="${index}">${content}
+      <span class="walk-show">Show route on map ›</span></button></li>`;
+}
+
+// 点了某一行：Route check 里填好这两节课和课间分钟数，地图上画出路线，然后滚到结果
+function handleWalkClick(event) {
+  const row = event.target.closest('button[data-walk]');
+  if (!row) {
+    return;
+  }
+  const walk = shownWalks[Number(row.dataset.walk)];
+  if (!walk) {
+    return;
+  }
+  fillRouteCheck(walk.from, walk.to, walk.gap);
+  // 手机上 Route check 在很下面，要滚过去才看得到结果；电脑上侧边栏也会滚到结果
+  document.getElementById('route-result').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// 只需要绑定一次：#class-walks 里面的内容每次都会重画，但它本身不变（事件委托）
+function initClassWalks() {
+  document.getElementById('class-walks').addEventListener('click', handleWalkClick);
 }
 
 // 走到以后还剩几分钟 → 一句话（和 judgeRoute 用的是同一个"剩余分钟"）

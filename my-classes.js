@@ -12,7 +12,9 @@ const myClasses = {
   items: [],        // 所有课
   placeIndex: null, // 地点搜索索引（app.js 建好后传进来）
   openId: null,     // 当前展开（正在确认 / 编辑）的是哪门课
-  undo: null        // 上一步之前的样子，用来 Undo
+  undo: null,       // 上一步之前的样子，用来 Undo
+  selecting: false, // 是不是在"批量选择"模式（每门课前面有一个圈）
+  selected: new Set() // 批量选择模式下，勾选了哪些课（存课的 id）
 };
 let nextClassId = 1;
 let toastTimer = null;
@@ -218,7 +220,7 @@ function renderMyClasses() {
   status.textContent = `${confirmed.length} classes on your map in ${groups.length} buildings. ` +
     'Each label on the map shows a building and how many of your classes meet there.';
 
-  let html = '';
+  let html = renderSelectToolbar(review.length + confirmed.length);
 
   // 1. 需要确认的放最上面，并有一个醒目的提示
   if (review.length > 0) {
@@ -273,6 +275,9 @@ function classMetaLine(c) {
 
 // 一门课的卡片：展开时显示确认 / 编辑的界面，收起时显示简要信息
 function renderCard(c) {
+  if (myClasses.selecting) {
+    return renderSelectableCard(c);
+  }
   if (myClasses.openId === c.id) {
     return renderEditor(c);
   }
@@ -304,6 +309,96 @@ function renderCard(c) {
       <p class="card-note">${hint}</p>
       <button type="button" class="primary-button" data-action="open">Review</button>
     </li>`;
+}
+
+// ===== 批量选择 =====
+
+// 列表上方的工具条
+// 平时：只有一个 "Select" 按钮；批量选择时：显示选了几门，以及"全选、删除、设地点、完成"
+function renderSelectToolbar(count) {
+  if (count === 0) {
+    return '';
+  }
+  if (!myClasses.selecting) {
+    return `<div class="select-toolbar">
+      <button type="button" class="link-button" data-action="select-start">Select classes</button>
+    </div>`;
+  }
+
+  const n = myClasses.selected.size;
+  const none = n === 0 ? 'disabled' : '';
+  return `<div class="select-toolbar selecting">
+    <div class="select-row">
+      <strong>${n} selected</strong>
+      <button type="button" class="link-button" data-action="select-all">${n === count ? 'Clear all' : 'Select all'}</button>
+      <button type="button" class="link-button" data-action="select-done">Done</button>
+    </div>
+    <div class="select-row">
+      <input type="search" id="bulk-location" list="place-options" placeholder="New location, e.g. CAS 211" ${none}>
+      <button type="button" class="small-button" data-action="bulk-location" disabled>Set location</button>
+    </div>
+    <button type="button" class="delete-button" data-action="bulk-delete" ${none}>
+      Delete ${n} ${n === 1 ? 'class' : 'classes'}
+    </button>
+  </div>`;
+}
+
+// 批量选择模式下的卡片：前面一个圈，整张卡片都可以点
+function renderSelectableCard(c) {
+  const checked = myClasses.selected.has(c.id);
+  const where = c.place ? locationLabel(c.place, c.room) : 'No location yet';
+  return `
+    <li class="class-card selectable ${checked ? 'selected' : ''}" data-id="${c.id}">
+      <span class="select-circle">${checked ? '✓' : ''}</span>
+      <span class="select-body">
+        <strong>${escapeHtml(c.title)}</strong>
+        ${classMetaLine(c)}<br>
+        <span class="rank-detail">${where}</span>
+      </span>
+    </li>`;
+}
+
+// 批量操作：把勾选的课删掉（可以 Undo）
+function bulkDelete() {
+  const ids = myClasses.selected;
+  const n = ids.size;
+  changeWithUndo(`Deleted ${n} ${n === 1 ? 'class' : 'classes'}`, function () {
+    myClasses.items = myClasses.items.filter(function (c) { return !ids.has(c.id); });
+  });
+  endSelecting();
+}
+
+// 批量操作：把勾选的课都设成同一个地点（可以 Undo）
+function bulkSetLocation(found) {
+  const ids = myClasses.selected;
+  changeWithUndo(`Moved ${ids.size} to ${found.place.name}`, function () {
+    myClasses.items.forEach(function (c) {
+      if (ids.has(c.id)) {
+        Object.assign(c, {
+          place: found.place, room: found.room, code: found.place.code || '',
+          status: 'confirmed', source: 'user', scanSuggestion: null, scanMessage: ''
+        });
+      }
+    });
+  });
+  endSelecting();
+}
+
+function endSelecting() {
+  myClasses.selecting = false;
+  myClasses.selected = new Set();
+  renderMyClasses();
+}
+
+// 批量选择工具条里的"新地点"输入框：认出地点才能点 Set location，按钮上写出是哪里
+function updateBulkLocationButton() {
+  const input = document.getElementById('bulk-location');
+  const button = document.querySelector('[data-action="bulk-location"]');
+  const found = resolveLocationText(input.value, myClasses.placeIndex);
+  button.disabled = !found;
+  button.textContent = found
+    ? `Set to ${found.place.code || found.place.name}${found.room ? ' ' + found.room : ''}`
+    : 'Set location';
 }
 
 // 展开后的确认 / 编辑界面
@@ -433,10 +528,59 @@ function findItem(card) {
 
 function handleListClick(event) {
   const button = event.target.closest('button[data-action]');
+
+  // 批量选择模式：点一张卡片（任何位置）就勾选 / 取消勾选
+  if (!button && myClasses.selecting) {
+    const card = event.target.closest('.class-card.selectable');
+    if (card) {
+      const id = Number(card.dataset.id);
+      if (myClasses.selected.has(id)) {
+        myClasses.selected.delete(id);
+      } else {
+        myClasses.selected.add(id);
+      }
+      renderMyClasses();
+    }
+    return;
+  }
   if (!button) {
     return;
   }
   const action = button.dataset.action;
+
+  // 批量选择的工具条
+  if (action === 'select-start') {
+    myClasses.selecting = true;
+    myClasses.openId = null; // 收起正在编辑的卡片
+    clearClassPreview();
+    renderMyClasses();
+    return;
+  }
+  if (action === 'select-done') {
+    endSelecting();
+    return;
+  }
+  if (action === 'select-all') {
+    const selectable = myClasses.items.filter(function (c) { return c.status !== 'skipped'; });
+    myClasses.selected = myClasses.selected.size === selectable.length
+      ? new Set()
+      : new Set(selectable.map(function (c) { return c.id; }));
+    renderMyClasses();
+    return;
+  }
+  if (action === 'bulk-delete') {
+    if (myClasses.selected.size > 0) {
+      bulkDelete();
+    }
+    return;
+  }
+  if (action === 'bulk-location') {
+    const found = resolveLocationText(document.getElementById('bulk-location').value, myClasses.placeIndex);
+    if (found && myClasses.selected.size > 0) {
+      bulkSetLocation(found);
+    }
+    return;
+  }
 
   // 提示条上的"再传一张截图"：不属于某一门课，打开普通的上传框
   if (action === 'scan-all') {
@@ -496,6 +640,10 @@ function handleListClick(event) {
 
 // 选项变化、在"别的地方"里打字：更新确认按钮
 function handleListInput(event) {
+  if (event.target.id === 'bulk-location') {
+    updateBulkLocationButton();
+    return;
+  }
   const card = event.target.closest('.class-card.editing');
   if (!card) {
     return;

@@ -384,6 +384,115 @@ main {
   color: #555;
 }
 
+/* ===== 批量选择 ===== */
+.select-toolbar {
+  margin: 8px 0;
+  font-size: 13px;
+  text-align: right;
+}
+
+/* 批量选择时，工具条贴在侧边栏顶部，往下滚动也看得到 */
+.select-toolbar.selecting {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  text-align: left;
+  padding: 8px 10px;
+  background: #eef3fc;
+  border: 1px solid #c9d7f2;
+  border-radius: 8px;
+}
+
+.select-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.select-row strong {
+  flex: 1;
+}
+
+#sidebar .select-row input {
+  flex: 1;
+  min-width: 0;
+}
+
+.small-button {
+  padding: 6px 8px;
+  font-size: 13px;
+  border: 1px solid #1558c0;
+  border-radius: 6px;
+  background: white;
+  color: #1558c0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.small-button:disabled {
+  border-color: #ccc;
+  color: #999;
+  cursor: not-allowed;
+}
+
+/* 删除：红色，和普通按钮区分开；没选任何课时是灰的 */
+.delete-button {
+  width: 100%;
+  padding: 7px;
+  font-size: 13px;
+  font-weight: bold;
+  color: white;
+  background: #c62828;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.delete-button:disabled {
+  background: #e0b4b4;
+  cursor: not-allowed;
+}
+
+/* 可以勾选的卡片：左边一个圈，选中后变成蓝色打勾 */
+.class-card.selectable {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+  border-left-color: #bbb;
+}
+
+.class-card.selectable.selected {
+  background: #eef3fc;
+  border-color: #1558c0;
+}
+
+.select-circle {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  border: 2px solid #999;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: bold;
+  color: white;
+}
+
+.selected .select-circle {
+  background: #1558c0;
+  border-color: #1558c0;
+}
+
+.select-body {
+  flex: 1;
+  min-width: 0;
+}
+
 /* 确认 / 跳过之后的提示条，带 Undo */
 .toast {
   margin-top: 8px;

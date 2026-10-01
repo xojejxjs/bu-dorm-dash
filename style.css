@@ -248,6 +248,45 @@ main {
   margin: 8px 0;
 }
 
+/* 提示条上的"再传一张截图"按钮 */
+.banner-button {
+  display: block;
+  margin-top: 6px;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #7a4f00;
+  background: white;
+  border: 1px solid #e8a200;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.banner-hint {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: normal;
+}
+
+/* 展开的卡片里"针对这门课再传一张截图"：边框按钮，比确认按钮弱，比 Skip 强 */
+.scan-one-button {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 6px;
+  font-size: 13px;
+  color: #1558c0;
+  background: white;
+  border: 1px solid #1558c0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.scan-message:empty {
+  display: none;
+}
+
 /* 主要按钮（Review / Confirm）：实心、醒目 */
 .primary-button {
   display: block;

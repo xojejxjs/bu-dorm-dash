@@ -27,6 +27,47 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// 放进 HTML 属性（比如 value="..."）时，引号也要换掉，不然课名里的 " 会把属性提前结束
+function escapeAttr(text) {
+  return escapeHtml(text).replace(/"/g, '&quot;');
+}
+
+// ===== 在 Route check 里用"我的课"当起点 / 终点 =====
+
+// 一门课在 From / To 候选列表里显示的名字，比如 "Calculus 1 (CASMA 123 DIS)"
+function myClassLabel(c) {
+  return `${c.title} (${c.course}${c.section ? ' ' + c.section : ''})`;
+}
+
+// From / To 候选列表里的"我的课"：只放已经确定地点的课
+// 输出：[{ value: 'Calculus 1 (CASMA 123 DIS)', label: 'My class · CAS 216' }]
+function getMyClassOptions() {
+  return myClasses.items
+    .filter(function (c) { return c.status === 'confirmed'; })
+    .map(function (c) {
+      const where = (c.place.code || c.place.name) + (c.room ? ' ' + c.room : '');
+      return { value: myClassLabel(c), label: 'My class · ' + where };
+    });
+}
+
+// 根据输入的文字找自己的课
+// allowPartial = false：必须和课名标签完全一样；true：课名里包含这段文字就算（比如 "calc"）
+// 输出：这门课所在的楼（复制一份，名字改成"课名 · 楼 教室"，id 不变，所以查表、判断"两节课之间"都照常）；找不到时是 undefined
+function findMyClass(text, allowPartial) {
+  const q = text.trim().toLowerCase();
+  if (q === '') {
+    return undefined;
+  }
+  const confirmed = myClasses.items.filter(function (c) { return c.status === 'confirmed'; });
+  const match = confirmed.find(function (c) { return myClassLabel(c).toLowerCase() === q; }) ||
+    (allowPartial ? confirmed.find(function (c) { return myClassLabel(c).toLowerCase().includes(q); }) : undefined);
+  if (!match) {
+    return undefined;
+  }
+  const where = (match.place.code || match.place.name) + (match.room ? ' ' + match.room : '');
+  return Object.assign({}, match.place, { name: `${match.title} · ${where}`, myClass: match });
+}
+
 // 把用户输入的地点文字变成地点："CAS 211"（楼宇代码 + 教室）或者地点名 "GSU"、"Mugar"
 // 输出：{ place, room }；空的或找不到时是 null
 function resolveLocationText(text, placeIndex) {
@@ -99,30 +140,53 @@ function addParsedSchedule(result) {
     }));
   });
 
+  let filledIn = 0; // 新截图帮多少门"原来没地点"的课找到了地点
+
   incoming.forEach(function (c) {
-    const existing = myClasses.items.find(function (item) { return classKey(item) === classKey(c); });
+    const existing = myClasses.items.find(function (item) { return sameClass(item, c); });
     if (!existing) {
       c.id = nextClassId++;
       myClasses.items.push(c);
       return;
     }
-    // 同一门课：合并上课日期；如果新截图里读到了地点，而原来还没确定，就用读到的地点
+    // 同一门课：合并上课日期
     c.days.forEach(function (d) {
       if (!existing.days.includes(d)) {
         existing.days.push(d);
       }
     });
-    if (c.status === 'confirmed' && existing.status !== 'confirmed') {
-      Object.assign(existing, { place: c.place, room: c.room, status: 'confirmed', source: 'schedule' });
+    if (!existing.time && c.time) {
+      existing.time = c.time;
+    }
+    // 新截图里读到了地点，而原来还在等确认：这是从课表读到的事实，直接用（有 Undo）
+    // 用户自己跳过的课不动，尊重用户的决定
+    if (c.status === 'confirmed' && (existing.status === 'guess' || existing.status === 'none')) {
+      Object.assign(existing, {
+        place: c.place, room: c.room, code: c.code, status: 'confirmed', source: 'schedule',
+        scanSuggestion: null, scanMessage: '' // 已经确定了，之前单独扫描得到的建议不再需要
+      });
+      filledIn++;
     }
   });
 
   renderMyClasses();
+  return filledIn;
+}
+
+// 是不是同一门课：课号和类型一样，时间也一样（某一张截图没读到时间时，只看课号和类型）
+function sameClass(a, b) {
+  if (a.course !== b.course || a.section !== b.section) {
+    return false;
+  }
+  return !a.time || !b.time || a.time === b.time;
 }
 
 // ===== 显示 =====
 
 function renderMyClasses() {
+  // 课表变了（确认、编辑、跳过、新截图）：From / To 的候选列表跟着更新
+  renderPlaceOptions();
+
   const items = myClasses.items;
   const list = document.getElementById('schedule-list');
   const status = document.getElementById('schedule-status');
@@ -156,7 +220,10 @@ function renderMyClasses() {
 
   // 1. 需要确认的放最上面，并有一个醒目的提示
   if (review.length > 0) {
-    html += `<div class="review-banner">⚠ ${review.length} ${review.length === 1 ? 'class needs' : 'classes need'} your check before ${review.length === 1 ? 'it is' : 'they are'} on your map.</div>`;
+    html += `<div class="review-banner">⚠ ${review.length} ${review.length === 1 ? 'class needs' : 'classes need'} your check before ${review.length === 1 ? 'it is' : 'they are'} on your map.
+      <button type="button" class="banner-button" data-action="scan-all">📷 Scan another screenshot</button>
+      <span class="banner-hint">Rooms we can read from it are filled in for you.</span>
+    </div>`;
     html += '<ul class="class-list">' + review.map(renderCard).join('') + '</ul>';
   }
 
@@ -180,6 +247,14 @@ function renderMyClasses() {
   }
 
   list.innerHTML = html;
+
+  // 有展开的卡片（比如刚扫描完、预先选中了新截图里的地点）：更新它的确认按钮
+  if (myClasses.openId !== null) {
+    const opened = list.querySelector(`[data-id="${myClasses.openId}"].editing`);
+    if (opened) {
+      updateConfirmButton(opened);
+    }
+  }
 }
 
 // 课名下面那一行：课号、时间、日期
@@ -234,6 +309,10 @@ function renderEditor(c) {
 
   // 选项：编辑时第一个是"当前地点"；推测的候选楼；最后是"别的地方"（自己输入）
   const options = [];
+  // 用户针对这门课再传了一张截图，并且在里面读到了地点：放在第一个、预先选中，但还是要用户点确认
+  if (c.scanSuggestion) {
+    options.push({ value: 'scan', place: c.scanSuggestion.place, room: c.scanSuggestion.room, note: 'Found in your new screenshot' });
+  }
   if (isEdit) {
     options.push({ value: 'current', place: c.place, room: c.room, note: 'Current location' });
   }
@@ -243,9 +322,12 @@ function renderEditor(c) {
     }
   });
 
+  // 预先选中哪个：有新截图读到的就选它；编辑时选"当前地点"；推测的一律不预先选中
+  const preselected = c.scanSuggestion ? 'scan' : (isEdit ? 'current' : null);
+
   let optionsHtml = '';
   options.forEach(function (o) {
-    const checked = o.value === 'current' ? 'checked' : '';
+    const checked = o.value === preselected ? 'checked' : '';
     optionsHtml += `
       <label class="location-option">
         <input type="radio" name="location-${c.id}" value="${o.value}" ${checked}>
@@ -279,6 +361,8 @@ function renderEditor(c) {
       <p class="card-note">${intro}</p>
       <div class="location-options">${optionsHtml}</div>
       <button type="button" class="primary-button" data-action="confirm" disabled>Choose a location above</button>
+      <button type="button" class="scan-one-button" data-action="scan-one">📷 Scan a screenshot that shows this class</button>
+      <p class="scan-message option-note">${c.scanMessage ? escapeHtml(c.scanMessage) : ''}</p>
       <div class="secondary-actions">
         <button type="button" class="link-button" data-action="skip">${isEdit ? 'Remove from my map' : "It's online · Skip"}</button>
         <button type="button" class="link-button" data-action="cancel">Cancel</button>
@@ -297,6 +381,9 @@ function readSelection(card, item) {
   }
   if (radio.value === 'current') {
     return { place: item.place, room: item.room };
+  }
+  if (radio.value === 'scan') {
+    return { place: item.scanSuggestion.place, room: item.scanSuggestion.room };
   }
   if (radio.value.startsWith('guess-')) {
     return { place: item.candidates[Number(radio.value.slice(6))].place, room: '' };
@@ -346,9 +433,23 @@ function handleListClick(event) {
   if (!button) {
     return;
   }
+  const action = button.dataset.action;
+
+  // 提示条上的"再传一张截图"：不属于某一门课，打开普通的上传框
+  if (action === 'scan-all') {
+    document.getElementById('schedule-file').click();
+    return;
+  }
+
   const card = button.closest('[data-id]');
   const item = findItem(card);
-  const action = button.dataset.action;
+
+  // "针对这门课再传一张截图"：记住是哪门课，然后打开专用的上传框
+  if (action === 'scan-one') {
+    myClasses.scanTargetId = item.id;
+    document.getElementById('class-scan-file').click();
+    return;
+  }
 
   if (action === 'open') {
     myClasses.openId = item.id;
@@ -371,6 +472,8 @@ function handleListClick(event) {
         place: selection.place,
         room: selection.room,
         code: selection.place.code || '',
+        scanSuggestion: null, // 已经确认了，下次编辑不再显示"新截图里找到的"
+        scanMessage: '',
         status: 'confirmed',
         source: item.source === 'schedule' && card.dataset.mode === 'edit' &&
           selection.place === item.place && selection.room === item.room ? 'schedule' : 'user'
@@ -424,30 +527,95 @@ function undoLastChange() {
 
 // ===== 读取课表 =====
 
-async function handleScheduleImage(file) {
+// 识别一张截图，返回 parseSchedule 的结果；失败时返回 null
+// 输入：图片文件、这是第几张 / 一共几张（用来显示进度）
+async function readOneScreenshot(file, number, total) {
   const status = document.getElementById('schedule-status');
+  const which = total > 1 ? `screenshot ${number} of ${total}` : 'your schedule';
   status.textContent = 'Loading the text reader (first time takes a few seconds)…';
   try {
     const lines = await readScheduleImage(file, function (progress) {
-      status.textContent = `Reading your schedule… ${Math.round(progress * 100)}%`;
+      status.textContent = `Reading ${which}… ${Math.round(progress * 100)}%`;
     });
-    console.log('OCR lines:', lines.map(function (l) { return l.text; }));
-    addParsedSchedule(parseSchedule(lines, myClasses.placeIndex));
+    console.log(`OCR lines (${file.name}):`, lines.map(function (l) { return l.text; }));
+    return parseSchedule(lines, myClasses.placeIndex);
   } catch (error) {
     console.log('OCR failed:', error);
-    status.textContent = "Couldn't read this image. Try another screenshot, or paste the text instead.";
+    return null;
   }
+}
+
+// 上传了一张或多张截图：一张一张识别，结果合并进列表
+async function handleScheduleFiles(files) {
+  const hadClasses = myClasses.items.length > 0;
+  // 记下识别之前的样子：如果新截图自动补上了地点，用户可以 Undo
+  const before = myClasses.items.map(function (item) {
+    return Object.assign({}, item, { days: item.days.slice() });
+  });
+
+  let filledIn = 0;
+  let failed = 0;
+  for (let i = 0; i < files.length; i++) {
+    const result = await readOneScreenshot(files[i], i + 1, files.length);
+    if (result) {
+      filledIn += addParsedSchedule(result);
+    } else {
+      failed++;
+    }
+  }
+
+  if (failed > 0) {
+    document.getElementById('schedule-status').textContent =
+      `Couldn't read ${failed} of ${files.length} screenshots. Try a clearer one, or paste the text instead.`;
+  }
+  // 之前已经有课、这次新截图补上了地点：告诉用户补了几门，可以撤销
+  if (hadClasses && filledIn > 0) {
+    myClasses.undo = before;
+    showToast(`Updated ${filledIn} ${filledIn === 1 ? 'class' : 'classes'} from your new screenshot`);
+  }
+}
+
+// 针对某一门课再传一张截图：只在新截图里找这门课的课号，找到就作为"建议地点"，仍然要用户确认
+async function handleClassScan(file) {
+  const item = myClasses.items.find(function (c) { return c.id === myClasses.scanTargetId; });
+  if (!item) {
+    return;
+  }
+  const result = await readOneScreenshot(file, 1, 1);
+  const found = result && result.located.find(function (c) {
+    return c.course === item.course && (!c.section || !item.section || c.section === item.section);
+  });
+
+  if (found) {
+    item.scanSuggestion = { place: found.place, room: found.room };
+    item.scanMessage = `Found ${item.course} in your screenshot — please confirm the location above.`;
+  } else {
+    item.scanMessage = `Couldn't find ${item.course} with a room in that screenshot. Try a screenshot where this class shows its room.`;
+  }
+  myClasses.openId = item.id; // 保持展开，让用户直接看到结果
+  renderMyClasses();
 }
 
 // app.js 在地点索引建好之后调用：把事件都接上
 function initMyClasses(placeIndex) {
   myClasses.placeIndex = placeIndex;
 
-  document.getElementById('schedule-file').addEventListener('change', function (event) {
+  // 上传一张或多张截图。处理完把输入框清空，这样再选同一张图也会触发
+  document.getElementById('schedule-file').addEventListener('change', async function (event) {
+    const files = Array.from(event.target.files);
+    if (files.length > 0) {
+      await handleScheduleFiles(files);
+    }
+    event.target.value = '';
+  });
+
+  // 针对某一门课再传一张截图
+  document.getElementById('class-scan-file').addEventListener('change', async function (event) {
     const file = event.target.files[0];
     if (file) {
-      handleScheduleImage(file);
+      await handleClassScan(file);
     }
+    event.target.value = '';
   });
 
   document.getElementById('schedule-text-button').addEventListener('click', function () {

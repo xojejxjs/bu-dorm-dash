@@ -39,10 +39,13 @@
       <!-- 区域 0.5：我的课（上传课表截图，识别出上课的楼并标在地图上） -->
       <section id="schedule-panel">
         <h2>My classes</h2>
-        <p class="hint">Upload a screenshot of your class schedule. It is read in your browser and never uploaded.</p>
+        <p class="hint">Upload one or more screenshots of your class schedule (hold Cmd to pick several). They are read in your browser and never uploaded.</p>
 
-        <!-- accept="image/*"：选择文件时只显示图片 -->
-        <input type="file" id="schedule-file" accept="image/*">
+        <!-- accept="image/*"：选择文件时只显示图片；multiple：可以一次选多张 -->
+        <input type="file" id="schedule-file" accept="image/*" multiple>
+
+        <!-- 隐藏的上传框：给"针对某一门课再传一张截图"用，由按钮触发 -->
+        <input type="file" id="class-scan-file" accept="image/*" hidden>
 
         <!-- 识别不准时的备用方式：直接粘贴课表文字 -->
         <details id="schedule-paste">

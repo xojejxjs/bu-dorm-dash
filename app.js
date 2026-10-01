@@ -92,8 +92,23 @@ function showDormInfo(dorm) {
 // 有分楼的宿舍（如 Warren）每座楼一条，名字和选宿舍系统一致
 // 输入：dorms 数组、buildings 数组
 // 输出：#place-options 里出现候选项
+// 宿舍和教学楼的数据，存下来，课表变化时重新生成候选列表要用
+let placeOptionData = { dorms: [], buildings: [] };
+
 function renderPlaceOptions(dorms, buildings) {
+  if (dorms && buildings) {
+    placeOptionData = { dorms: dorms, buildings: buildings };
+  }
+  dorms = placeOptionData.dorms;
+  buildings = placeOptionData.buildings;
+
+  // 1. 自己课表里的课排在最前面：value 是课名（选中后填进输入框），label 是右边的小字说明在哪
   let html = '';
+  getMyClassOptions().forEach(function (option) {
+    html += `<option value="${escapeAttr(option.value)}" label="${escapeAttr(option.label)}"></option>`;
+  });
+
+  // 2. 然后是所有宿舍和教学楼
   dorms.forEach(function (dorm) {
     if (dorm.units && dorm.units.length > 0) {
       dorm.units.forEach(function (unit) {
@@ -301,6 +316,12 @@ async function resolvePlaceInput(inputBox, slot, placeIndex, allowPartial) {
     return undefined;
   }
 
+  // 自己课表里的课（从候选列表里选的课名，完全一样才算）
+  const myClassExact = findMyClass(text, false);
+  if (myClassExact) {
+    return myClassExact;
+  }
+
   // 课表格式（比如 "CAS 211"）：用代码找楼，教室号放进显示的名字里
   const classroom = parseClassroom(text);
   if (classroom) {
@@ -327,6 +348,13 @@ async function resolvePlaceInput(inputBox, slot, placeIndex, allowPartial) {
   // 正在打字时不查地址（Nominatim 不允许边打字边查，也免得地图乱跳）
   if (!allowPartial) {
     return undefined;
+  }
+
+  // 打完了：地点里找不到，再看是不是自己某门课名字的一部分（比如 "calc" → Calculus 1）
+  const myClassPartial = findMyClass(text, true);
+  if (myClassPartial) {
+    inputBox.value = myClassLabel(myClassPartial.myClass); // 改成完整课名，让用户确认找到的是哪门课
+    return myClassPartial;
   }
 
   showRouteMessage(`Looking up "${text}"…`);
@@ -403,7 +431,8 @@ async function updateRoute(placeIndex, allowPartial) {
     return;
   }
   if (fromPlace.id === toPlace.id) {
-    showRouteMessage('Start and destination are the same place.');
+    // 两门课在同一栋楼（或者选了同一个地点）：不用走路
+    showRouteMessage('Both are in the same building — no walk needed.');
     return;
   }
   if (!(gapMinutes > 0)) {

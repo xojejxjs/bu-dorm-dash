@@ -567,6 +567,31 @@ async function handleScheduleFiles(files) {
   }
 }
 
+// 再传的文件里没找到这门课的教室：说清楚到底读到了什么，用户才知道该换哪张图
+function explainMissedScan(item, result, fileName) {
+  const all = result.located.concat(result.unlocated);
+  const sameCourse = all.filter(function (c) { return c.course === item.course; });
+  const describe = function (c) {
+    return [c.section, c.time, c.days.join(', ')].filter(Boolean).join(' ');
+  };
+
+  // 1. 文件里根本没有这门课
+  if (sameCourse.length === 0) {
+    const others = all.map(function (c) { return c.course; }).filter(Boolean);
+    return `${fileName} doesn't show ${item.course}` +
+      (others.length > 0 ? ` (we read: ${others.slice(0, 4).join(', ')}).` : ' — we couldn\'t read any course numbers in it.');
+  }
+  // 2. 有这个时段，但是没写教室
+  const sameMeetingNoRoom = sameCourse.find(function (c) { return sameMeeting(c, item); });
+  if (sameMeetingNoRoom) {
+    return `${fileName} shows ${[item.course, describe(sameMeetingNoRoom)].filter(Boolean).join(' ')}, but no room` +
+      (sameMeetingNoRoom.noRoom ? ' ("No room assigned").' : '. Try the class details pop-up, which lists "Room:".');
+  }
+  // 3. 有这门课，但是别的时段（比如 discussion，或者时间不一样）
+  return `${fileName} shows ${item.course} only at other times (${sameCourse.map(describe).join('; ')}), ` +
+    `not ${[item.section, item.time].filter(Boolean).join(' ')}.`;
+}
+
 // 针对某一门课再传一个文件：先对课号，再对类型和时间；找到有教室的，就作为"建议地点"，仍然要用户确认
 async function handleClassScan(file) {
   const item = myClasses.items.find(function (c) { return c.id === myClasses.scanTargetId; });
@@ -582,7 +607,7 @@ async function handleClassScan(file) {
   } else if (result.error) {
     item.scanMessage = result.error;
   } else {
-    item.scanMessage = `Couldn't find ${item.course}${item.time ? ' at ' + item.time : ''} with a room in that file. Try one where this class shows its room.`;
+    item.scanMessage = explainMissedScan(item, result, file.name);
   }
   myClasses.openId = item.id; // 保持展开，让用户直接看到结果
   renderMyClasses();

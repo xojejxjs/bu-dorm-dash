@@ -8,10 +8,11 @@ const LONG_BREAK_MINUTES = 60; // 课间超过这么久，就不算"赶课"，�
 
 // 找出一周里所有"相邻两节课"之间的步行
 // 输入：所有课（myClasses.items）
-// 输出：{ walks, unchecked }
+// 输出：{ walks, checked, unchecked }
 //   walks：[{ from, to, days, gap, kind, route }]，已经排好序（最需要注意的在最上面）
 //     kind：'clash'（时间冲突）、'same'（同一栋楼）、'long'（课间很长）、'walk'（要走过去）
 //     route：只有 kind 是 'walk' 时才有，是 judgeRoute 的结果 { meters, minutes, verdict, isEstimate }
+//   checked：检查了的课（确定了地点、有时间和星期）
 //   unchecked：没法检查的课（还没有地点，或者没有上课时间 / 星期）
 function findClassWalks(items) {
   const checkable = [];
@@ -58,7 +59,7 @@ function findClassWalks(items) {
       a.from.end - b.from.end;
   });
 
-  return { walks: walks, unchecked: unchecked };
+  return { walks: walks, checked: checkable, unchecked: unchecked };
 }
 
 // 判断一对相邻的课属于哪种情况
@@ -91,4 +92,128 @@ function walkRank(walk) {
     return 3; // 和 🟢 同一级
   }
   return 4;   // 'long'
+}
+
+// ===== 显示 =====
+
+// 在 My classes 下面显示 "Your walks between classes"
+// renderMyClasses() 每次最后都会调用它，所以课表一变，这里就重新算
+function renderClassWalks() {
+  const box = document.getElementById('class-walks');
+  const result = findClassWalks(myClasses.items);
+
+  // 还没有课（或者全都跳过了）：什么都不显示
+  if (result.checked.length === 0 && result.unchecked.length === 0) {
+    box.innerHTML = '';
+    return;
+  }
+
+  const urgent = result.walks.filter(function (w) { return w.kind !== 'long'; });
+  const long = result.walks.filter(function (w) { return w.kind === 'long'; });
+
+  let html = '<h3>Your walks between classes</h3>';
+
+  if (result.walks.length > 0) {
+    html += `<p class="hint">Each day, from one class to the next.
+      🟢 at least ${BUFFER_MINUTES} min to spare · 🟡 tight · 🔴 you'd be late</p>`;
+  } else if (result.checked.length > 0) {
+    html += '<p class="hint">No back-to-back classes on the same day, so there are no walks to check.</p>';
+  } else {
+    html += '<p class="hint">Confirm where your classes are above, then the walks between them show up here.</p>';
+  }
+
+  // 1. 要注意的：冲突、🔴、🟡、🟢（已经按这个顺序排好）
+  if (urgent.length > 0) {
+    html += '<ul class="walk-list">' + urgent.map(renderWalkRow).join('') + '</ul>';
+  }
+
+  // 2. 课间很长的：不用赶，折叠起来
+  if (long.length > 0) {
+    html += `<details class="walk-long"><summary>Longer breaks, over ${LONG_BREAK_MINUTES} min (${long.length})</summary>
+      <ul class="walk-list">${long.map(renderWalkRow).join('')}</ul></details>`;
+  }
+
+  // 3. 没法检查的课：说出来，不然用户会以为"没显示 = 没问题"
+  if (result.unchecked.length > 0) {
+    const names = result.unchecked.map(function (c) {
+      return `${escapeHtml(c.title)} (${uncheckedReason(c)})`;
+    });
+    html += `<p class="hint walk-unchecked">Not checked yet: ${names.join(', ')}.</p>`;
+  }
+
+  box.innerHTML = html;
+}
+
+// 一行：星期和时间 / 从哪门课 / 到哪门课 / 课间多久、走多久、结论
+function renderWalkRow(walk) {
+  const from = walk.from;
+  const to = walk.to;
+  const days = walk.days.join(', ');
+
+  let icon;
+  let color;
+  let when = `${formatClock(from.end)} → ${formatClock(to.start)}`;
+  let detail;
+
+  if (walk.kind === 'clash') {
+    icon = '⚠️';
+    color = 'clash';
+    when = `${formatClock(from.start)}–${formatClock(from.end)} and ${formatClock(to.start)}–${formatClock(to.end)}`;
+    detail = `Time clash: these overlap by ${-walk.gap} min`;
+  } else if (walk.kind === 'same') {
+    icon = '🟢';
+    color = 'green';
+    detail = `${walk.gap} min break · same building, no walk needed`;
+  } else if (walk.kind === 'long') {
+    icon = '🟢';
+    color = 'long';
+    detail = `${formatBreak(walk.gap)} break`;
+  } else {
+    const route = walk.route;
+    icon = { green: '🟢', yellow: '🟡', red: '🔴' }[route.verdict];
+    color = route.verdict;
+    // 估算要说清楚，不能让它看起来像真实路线
+    const walkText = `~${route.minutes} min walk${route.isEstimate ? ' (estimate)' : ''}`;
+    detail = `${walk.gap} min break · ${walkText} · ${spareText(walk.gap - route.minutes)}`;
+  }
+
+  return `
+    <li class="walk-row walk-${color}">
+      <span class="walk-when">${icon} ${escapeHtml(days)} · ${escapeHtml(when)}</span>
+      <strong>${escapeHtml(from.title)} <span class="walk-where">${escapeHtml(classWhere(from))}</span></strong>
+      <strong>→ ${escapeHtml(to.title)} <span class="walk-where">${escapeHtml(classWhere(to))}</span></strong>
+      <span class="walk-detail">${escapeHtml(detail)}</span>
+    </li>`;
+}
+
+// 走到以后还剩几分钟 → 一句话（和 judgeRoute 用的是同一个"剩余分钟"）
+function spareText(spare) {
+  if (spare < 0) {
+    return `${-spare} min late`;
+  }
+  if (spare === 0) {
+    return 'just on time';
+  }
+  return `${spare} min to spare`;
+}
+
+// 145 → "2 hr 25 min"；不到 1 小时就只写分钟
+function formatBreak(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) {
+    return `${m} min`;
+  }
+  return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
+}
+
+// 为什么这门课没法检查
+function uncheckedReason(c) {
+  if (c.status !== 'confirmed' || !c.place) {
+    return 'no location yet';
+  }
+  if (c.start == null || c.end == null) {
+    return 'no class time';
+  }
+  return 'no class days';
 }

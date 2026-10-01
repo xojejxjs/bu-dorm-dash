@@ -5,7 +5,7 @@
 // 本地测试（localhost）时 GoatCounter 默认不统计，所以自己测试不会把数字弄乱
 
 // 反馈问卷（Google Form）的链接。填上以后，标题栏才会出现 Feedback 按钮
-const FEEDBACK_URL = '';
+const FEEDBACK_URL = 'https://docs.google.com/forms/d/e/1FAIpQLScIYqT3b76jl1GMSKbdynxxQLWAaBMl0ajd0hVSVABFDCB4vg/viewform';
 
 // 记一次事件。GoatCounter 还没加载好（或者被浏览器插件挡住）时，什么都不做
 function trackEvent(name) {

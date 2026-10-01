@@ -56,9 +56,14 @@ function getMyClassOptions() {
   return myClasses.items
     .filter(function (c) { return c.status === 'confirmed'; })
     .map(function (c) {
-      const where = (c.place.code || c.place.name) + (c.room ? ' ' + c.room : '');
-      return { value: myClassLabel(c), label: 'My class · ' + where };
+      return { value: myClassLabel(c), label: 'My class · ' + classWhere(c) };
     });
+}
+
+// 一门课在哪里上，比如 "CAS 216"；楼没有代码时用楼名
+// 只用于已经确定地点（有 place）的课
+function classWhere(c) {
+  return (c.place.code || c.place.name) + (c.room ? ' ' + c.room : '');
 }
 
 // 根据输入的文字找自己的课
@@ -435,6 +440,9 @@ function renderMyClasses() {
 
   // 课表变了（确认、编辑、跳过、新截图）：From / To 的候选列表跟着更新
   renderPlaceOptions();
+
+  // 课间步行分析（my-week.js）也跟着重新算
+  renderClassWalks();
 
   const items = myClasses.items;
   const list = document.getElementById('schedule-list');

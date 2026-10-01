@@ -9,12 +9,14 @@
   <!-- Leaflet 的样式文件，必须引入，否则地图显示会错乱 -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <link rel="stylesheet" href="style.css?v=2026-10-02a" />
+  <link rel="stylesheet" href="style.css?v=2026-10-02b" />
 </head>
 <body>
 
   <header>
     <h1>SemesterMap</h1>
+    <!-- 反馈问卷：analytics.js 里填了链接才会显示 -->
+    <a id="feedback-link" class="feedback-link" href="#" target="_blank" rel="noopener" hidden>💬 Feedback</a>
     <!-- 副标题：列出主要功能。以后加功能只改这一句，名字不用变 -->
     <p class="tagline">Your BU semester on a map: see where your classes are, find the dorm that fits them, and avoid classes too far apart to walk between.</p>
   </header>
@@ -69,6 +71,9 @@
         <p id="schedule-status" class="hint"></p>
         <div id="schedule-list"></div>
 
+        <!-- 课间步行分析：每天连着上的两节课，走过去来不来得及（my-week.js） -->
+        <div id="class-walks"></div>
+
         <!-- 确认 / 跳过之后短暂出现的提示，可以 Undo -->
         <div id="class-toast" class="toast" hidden></div>
       </section>
@@ -118,6 +123,8 @@
         <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>.
         Addresses you type are looked up with OpenStreetMap's Nominatim service.
         Independent student project, not affiliated with Boston University.
+        Anonymous visit counts with <a href="https://www.goatcounter.com/" target="_blank">GoatCounter</a>, no cookies;
+        your schedule never leaves your browser.
       </footer>
 
     </aside>
@@ -134,16 +141,21 @@
 
   <!-- 我们自己的 JS，顺序很重要：被别人用的文件要先加载 -->
   <!-- ?v=版本号：每次更新网站时改这个号码，浏览器就会下载新文件，而不是继续用缓存里的旧文件 -->
-  <script>const APP_VERSION = '2026-10-02a';</script>
-  <script src="distance.js?v=2026-10-02a"></script>
-  <script src="geocode.js?v=2026-10-02a"></script>
-  <script src="route-api.js?v=2026-10-02a"></script>
-  <script src="schedule.js?v=2026-10-02a"></script>
-  <script src="schedule-import.js?v=2026-10-02a"></script>
-  <script src="course-guess.js?v=2026-10-02a"></script>
-  <script src="my-classes.js?v=2026-10-02a"></script>
-  <script src="map.js?v=2026-10-02a"></script>
-  <script src="app.js?v=2026-10-02a"></script>
+  <script>const APP_VERSION = '2026-10-02b';</script>
+  <script src="distance.js?v=2026-10-02b"></script>
+  <script src="geocode.js?v=2026-10-02b"></script>
+  <script src="route-api.js?v=2026-10-02b"></script>
+  <script src="schedule.js?v=2026-10-02b"></script>
+  <script src="schedule-import.js?v=2026-10-02b"></script>
+  <script src="course-guess.js?v=2026-10-02b"></script>
+  <script src="my-classes.js?v=2026-10-02b"></script>
+  <script src="map.js?v=2026-10-02b"></script>
+  <script src="app.js?v=2026-10-02b"></script>
+  <script src="analytics.js?v=2026-10-02b"></script>
+
+  <!-- 访问统计（GoatCounter）：不用 cookie；只在线上网站统计，本地测试不算 -->
+  <script data-goatcounter="https://xojejxjs.goatcounter.com/count"
+          async src="https://gc.zgo.at/count.js"></script>
 
 </body>
 </html>

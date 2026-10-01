@@ -18,9 +18,40 @@ header {
   color: white;
 }
 
+header {
+  position: relative; /* 让 Feedback 按钮可以放在右上角 */
+}
+
 header h1 {
   margin: 0;
   font-size: 20px;
+}
+
+/* 右上角的 Feedback 按钮 */
+.feedback-link {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  padding: 4px 10px;
+  border: 1px solid white;
+  border-radius: 14px;
+  color: white;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.feedback-link:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* 有 Feedback 按钮时，副标题不要伸到按钮下面 */
+header:has(.feedback-link:not([hidden])) .tagline {
+  padding-right: 110px;
+}
+
+/* display 规则会盖过 hidden 属性，再写一次 */
+.feedback-link[hidden] {
+  display: none;
 }
 
 /* 名字下面的一句话：说明主要功能 */

@@ -23,6 +23,13 @@ header h1 {
   font-size: 20px;
 }
 
+/* 名字下面的一句话：说明主要功能 */
+header .tagline {
+  margin: 2px 0 0;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
 /* main：左边 sidebar，右边地图，左右并排 */
 main {
   flex: 1;
@@ -611,6 +618,10 @@ main {
 @media (max-width: 768px) {
   header h1 {
     font-size: 16px;
+  }
+
+  header .tagline {
+    font-size: 11px;
   }
 
   /* 左右并排 → 上下排列 */

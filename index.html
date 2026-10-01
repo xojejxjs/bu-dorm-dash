@@ -4,17 +4,19 @@
   <meta charset="UTF-8">
   <!-- 让页面在手机上按设备宽度显示，而不是缩成一小块 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BU Housing & Campus Decision Tool</title>
+  <title>SemesterMap · BU</title>
 
   <!-- Leaflet 的样式文件，必须引入，否则地图显示会错乱 -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <link rel="stylesheet" href="style.css?v=2026-09-30g" />
+  <link rel="stylesheet" href="style.css?v=2026-10-01a" />
 </head>
 <body>
 
   <header>
-    <h1>BU Housing & Campus Decision Tool</h1>
+    <h1>SemesterMap</h1>
+    <!-- 副标题：列出主要功能。以后加功能只改这一句，名字不用变 -->
+    <p class="tagline">Your BU semester on a map: see where your classes are, find the dorm that fits them, and avoid classes too far apart to walk between.</p>
   </header>
 
   <main>
@@ -126,16 +128,16 @@
 
   <!-- 我们自己的 JS，顺序很重要：被别人用的文件要先加载 -->
   <!-- ?v=版本号：每次更新网站时改这个号码，浏览器就会下载新文件，而不是继续用缓存里的旧文件 -->
-  <script>const APP_VERSION = '2026-09-30g';</script>
-  <script src="distance.js?v=2026-09-30g"></script>
-  <script src="geocode.js?v=2026-09-30g"></script>
-  <script src="route-api.js?v=2026-09-30g"></script>
-  <script src="schedule.js?v=2026-09-30g"></script>
-  <script src="schedule-import.js?v=2026-09-30g"></script>
-  <script src="course-guess.js?v=2026-09-30g"></script>
-  <script src="my-classes.js?v=2026-09-30g"></script>
-  <script src="map.js?v=2026-09-30g"></script>
-  <script src="app.js?v=2026-09-30g"></script>
+  <script>const APP_VERSION = '2026-10-01a';</script>
+  <script src="distance.js?v=2026-10-01a"></script>
+  <script src="geocode.js?v=2026-10-01a"></script>
+  <script src="route-api.js?v=2026-10-01a"></script>
+  <script src="schedule.js?v=2026-10-01a"></script>
+  <script src="schedule-import.js?v=2026-10-01a"></script>
+  <script src="course-guess.js?v=2026-10-01a"></script>
+  <script src="my-classes.js?v=2026-10-01a"></script>
+  <script src="map.js?v=2026-10-01a"></script>
+  <script src="app.js?v=2026-10-01a"></script>
 
 </body>
 </html>

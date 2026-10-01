@@ -1,6 +1,12 @@
-# BU Housing & Campus Decision Tool
+# SemesterMap
 
-An interactive map that helps Boston University students compare dorms by **how long it actually takes to walk to the places they go every day**, and check whether the gap between two classes is long enough to get across campus.
+**Your BU semester on a map.** SemesterMap helps Boston University students:
+
+1. **See where your classes are** — add your schedule and every building you go to shows up on the map.
+2. **Choose a dorm that fits your classes** — compare dorms by how long it actually takes to walk to the places you go every day.
+3. **Avoid classes too far apart** — check whether the gap between two classes is long enough to walk across campus.
+
+*An independent student project. Not affiliated with Boston University.*
 
 ## Why
 

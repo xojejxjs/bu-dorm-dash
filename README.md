@@ -15,6 +15,7 @@ An interactive map that helps Boston University students compare dorms by **how 
 - **Route check** — pick any two places and the minutes you have. The tool looks up the real walking time and says whether you'll make it: 🟢 easy, 🟡 tight, 🔴 not enough time.
 - **Any address** — type a street address near BU (e.g. an off-campus apartment) and it is found on the map with OpenStreetMap Nominatim. Drag the pin if the spot is slightly off.
 - **Class locations** — type a room from your schedule, like `CAS 211` or `PHO 206`, using official BU building codes.
+- **My classes** — add your schedule as screenshots, the BU calendar file (.ics), PDF, Word (.docx) or text. Classes are matched by course number first, then by type (lecture, discussion…) and time; days and times are standardised (Mon, Wed, Fri · 9:05 AM – 9:55 AM). Each building on the map shows how many of your classes meet there. Locations guessed from the course number always need your confirmation.
 - **Dorm ranking** — choose a building and see every dorm ranked by walking time to it.
 - Works on phones as well as laptops.
 

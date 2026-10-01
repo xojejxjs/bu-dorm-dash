@@ -333,7 +333,8 @@ main {
 }
 
 /* 地点选项：每个选项一个可点的方框，写清楚是哪栋楼、地址、为什么推荐 */
-.location-option {
+/* 前面加 #sidebar：因为 "#sidebar label" 和 "#sidebar input" 带 id，优先级比单纯的 class 高，不加就会被它们覆盖 */
+#sidebar .location-option {
   display: flex;
   gap: 8px;
   align-items: flex-start;
@@ -346,17 +347,24 @@ main {
   font-size: 13px;
 }
 
-.location-option:has(input[type="radio"]:checked) {
+#sidebar .location-option:has(input[type="radio"]:checked) {
   border-color: #1558c0;
   box-shadow: 0 0 0 1px #1558c0;
 }
 
-.location-option input[type="radio"] {
+#sidebar .location-option input[type="radio"] {
   width: auto;
   margin-top: 3px;
+  flex: none; /* 圆圈保持原本大小，不被拉宽 */
 }
 
-.location-option .other-location {
+/* 右边的文字部分占满剩下的宽度（"Somewhere else" 的输入框也能撑满） */
+#sidebar .location-option > span {
+  flex: 1;
+  min-width: 0;
+}
+
+#sidebar .location-option .other-location {
   margin-top: 6px;
 }
 

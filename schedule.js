@@ -1,4 +1,4 @@
-// schedule.js：只负责"课表截图 / 课表文字 → 课程列表"
+// schedule.js：只负责"课表（截图、PDF、Word、文字）→ 课程列表"
 // 图片用 Tesseract.js 在浏览器里识别（OCR），图片不会上传到任何服务器
 
 // ===== 第一步：图片 → 带位置的文字片段 =====
@@ -153,17 +153,24 @@ function textToLines(text) {
 }
 
 // ===== 第二步：文字片段 → 课程 =====
+//
+// 思路：不依赖某一种排版（日历格子、课程详情弹窗、Google 日历、Word / PDF 里的文字都能用）
+//   1. 先找"课号"（比如 CASCH 171）：它在任何格式里都一样，最可靠
+//   2. 再在课号附近找：类型（LEC / DIS …）、时间、星期、教室
+//   3. 统一写法：时间都写成 "9:05 AM – 9:55 AM"，星期都写成 Mon、Wed、Fri
+//   4. 课号相同，再比类型和时间：都一样 → 同一个上课时段，合并星期；
+//      不一样 → 同一门课的另一个时段（比如 lecture 和 discussion），分开放
 
-// 时间，比如 "8:00 - 9:15 am"、"2:30-3:20 pm"
-const TIME_PATTERN = /(\d{1,2}:\d{2})\s*[-–—]\s*(\d{1,2}:\d{2})\s*(am|pm)/i;
+// 完整课号：5 个字母 + 3 位数字，比如 CASCH 171（BU 规则：学院 3 个字母 + 系 2 个字母）
+// 只认 5 个字母，所以 "CAS 216" 这种教室不会被当成课号
+const COURSE_CODE = /\b([A-Z]{5})\s?(\d{3}[A-Z]?)\b/;
 
-// 课号，比如 "CDSDS 110 (LEC)"、"CASMA 123 LEC"、"CASCH 171 PLB"
-// BU 的课号是 5 个字母（学院 3 个 + 系 2 个，CAS + MA = CASMA），这样 "CAS 216" 这种教室不会被当成课号
-const COURSE_PATTERN = /^([A-Z]{5})\s?(\d{3}[A-Z]?)\s*(?:\(?([A-Z]{3})\)?)?/;
+// 简写课号：系 2 个字母 + 3 位数字，比如自己记在 Google 日历里的 "DS 110"、"WR 112"
+const SHORT_CODE = /\b([A-Z]{2})\s?(\d{3})\b/;
 
 // 课名前面可能粘上了左边时间轴的 "8 AM"、"PM"，去掉
 function cleanTitle(text) {
-  return text.replace(/^(\d{1,2}\s*)?(AM|PM)\b\s*/i, '').trim();
+  return text.replace(/^(\d{1,2}\s*)?(AM|PM)\b\s*/i, '').replace(/\s+l$/, '').trim();
 }
 
 // 一段结尾的"楼宇代码 + 教室号"，比如 "... CAS B25A"、"... CDS 164"
@@ -173,7 +180,185 @@ const LOCATION_PATTERN = /(?:^|\s)([A-Z]{2,4})\s+([A-Z]?\d{1,4}[A-Z]?)\s*$/;
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 const WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
-// ===== 找楼：先按楼宇代码，找不到再按地址 =====
+// 星期的标准写法；DAY_NAMES 的顺序和 JavaScript 的 getDay() 一样（0 = 周日）
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+// ===== 统一写法：时间 =====
+
+// 时间 → "从午夜开始过了多少分钟"（9:05 AM → 545），这样不同写法的时间也能直接比较
+function toMinutes(hour, minute, meridiem) {
+  let h = hour % 12;           // 12 点先当成 0
+  if (meridiem === 'pm') {
+    h += 12;
+  }
+  return h * 60 + minute;
+}
+
+// 找出一段文字里所有的时间，比如 "9:05AM"、"3:30"、"08:00"
+// 输出：[{ h, m, mer: 'am' | 'pm' | null, raw: '08:00', index, end }]
+function findTimeTokens(text) {
+  const tokens = [];
+  const re = /(\d{1,2}):(\d{2})(?:\s*([AaPp])\.?\s?[Mm]\b\.?)?/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const h = Number(m[1]);
+    const minute = Number(m[2]);
+    if (h <= 23 && minute <= 59) {
+      tokens.push({
+        h: h,
+        m: minute,
+        mer: m[3] ? (m[3].toLowerCase() === 'a' ? 'am' : 'pm') : null,
+        raw: m[1] + ':' + m[2],
+        index: m.index,
+        end: m.index + m[0].length
+      });
+    }
+  }
+  return tokens;
+}
+
+// 把开始、结束时间换成分钟数，补上没写的上午 / 下午
+// 输入：开始、结束（结束可以是 null）
+// 输出：{ start, end }，end 可能是 null
+function resolveTimes(a, b) {
+  let merA = a.mer;
+  let merB = b ? b.mer : null;
+
+  // 24 小时制：有小时大于 12，或者写成 "08:00" 这种前面带 0 的
+  const is24 = !merA && !merB && [a, b].some(function (t) { return t && (t.h > 12 || /^0\d/.test(t.raw)); });
+  if (is24) {
+    return { start: a.h * 60 + a.m, end: b ? b.h * 60 + b.m : null };
+  }
+
+  if (!merA && merB) {
+    // 只在最后写了 am / pm（"11:30 - 12:20 pm"）：先当成一样；如果开始比结束还晚，说明开始是上午
+    merA = merB;
+    if (toMinutes(a.h, a.m, merA) > toMinutes(b.h, b.m, merB)) {
+      merA = 'am';
+    }
+  } else if (merA && b && !merB) {
+    merB = merA;
+    if (toMinutes(a.h, a.m, merA) > toMinutes(b.h, b.m, merB)) {
+      merB = 'pm';
+    }
+  } else if (!merA && !merB) {
+    // 都没写：按上课的常见时间猜。7～11 点是上午；12 点和 1～6 点是下午
+    const guess = function (t) { return t.h >= 7 && t.h <= 11 ? 'am' : 'pm'; };
+    merA = guess(a);
+    merB = b ? guess(b) : null;
+  }
+  return { start: toMinutes(a.h, a.m, merA), end: b ? toMinutes(b.h, b.m, merB) : null };
+}
+
+// 一段文字里的时间段："3:30 - 4:45 pm"、"11:15AM - 12:05PM"、"08:00 – 09:15"；只有开始时间也行（"13:25"）
+// 输出：{ start, end }；没有时间时是 null
+function parseTimeRange(text) {
+  const tokens = findTimeTokens(text);
+  if (tokens.length === 0) {
+    return null;
+  }
+  const a = tokens[0];
+  // 两个时间之间只隔着 "-"、"–"、"to"，才算一个时间段
+  const b = tokens[1] && /^\s*(?:-|–|—|to)\s*$/i.test(text.slice(a.end, tokens[1].index)) ? tokens[1] : null;
+  return resolveTimes(a, b);
+}
+
+// 分钟数 → "9:05 AM"
+function formatClock(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+// { start, end } → "9:05 AM – 9:55 AM"（只有开始时间就只写开始）
+function formatTimeRange(time) {
+  return time.end === null ? formatClock(time.start) : `${formatClock(time.start)} – ${formatClock(time.end)}`;
+}
+
+// ===== 统一写法：星期 =====
+
+const DAY_CODES = { Mo: 'Mon', Tu: 'Tue', We: 'Wed', Th: 'Thu', Fr: 'Fri', Sa: 'Sat', Su: 'Sun' };
+
+// BU 的写法 "MoWeFr"、"TuTh" → ['Mon', 'Wed', 'Fri']；不是这种写法就返回空数组
+function parseDayCodes(token) {
+  if (!/^(?:Mo|Tu|We|Th|Fr|Sa|Su)+$/.test(token)) {
+    return [];
+  }
+  return token.match(/Mo|Tu|We|Th|Fr|Sa|Su/g).map(function (c) { return DAY_CODES[c]; });
+}
+
+// 一段"肯定是星期"的文字（比如 Days: 后面）：支持 MoWeFr、Mon/Wed/Fri、Monday …
+function parseDays(text) {
+  let days = [];
+  text.split(/[\s,/&]+/).forEach(function (token) {
+    const codes = parseDayCodes(token);
+    if (codes.length > 0) {
+      days = days.concat(codes);
+      return;
+    }
+    const m = token.match(/^(mon|tue|wed|thu|fri|sat|sun)(?:day|s|sday|nesday|r|rs|rsday|urday)?\.?$/i);
+    if (m) {
+      days.push(DAY_NAMES.find(function (d) { return d.toLowerCase() === m[1].toLowerCase(); }));
+    }
+  });
+  return sortDays(days);
+}
+
+// 去掉重复，按周一到周日排好
+function sortDays(days) {
+  return DAY_ORDER.filter(function (d) { return days.includes(d); });
+}
+
+// 日历表头 → 星期几："MON" → 'Mon'；"SEP 28" → 算出这一天是周几（用今年的年份）
+function headerToDay(label) {
+  const parts = label.split(' ');
+  if (parts.length === 1) {
+    return DAY_NAMES.find(function (d) { return d.toUpperCase() === label; }) || '';
+  }
+  const date = new Date(new Date().getFullYear(), MONTHS.indexOf(parts[0]), Number(parts[1]));
+  return DAY_NAMES[date.getDay()];
+}
+
+// ===== 统一写法：类型 =====
+
+const TYPE_WORDS = {
+  LECTURE: 'LEC', LEC: 'LEC',
+  DISCUSSION: 'DIS', DIS: 'DIS',
+  LABORATORY: 'LAB', LAB: 'LAB',
+  PLB: 'PLB',
+  SEMINAR: 'SEM', SEM: 'SEM',
+  INDEPENDENT: 'IND', IND: 'IND',
+  RECITATION: 'REC', REC: 'REC',
+  STUDIO: 'STU', STU: 'STU'
+};
+
+// 一段文字里的上课类型："(LEC)"、"LEC"、"A1-LEC"、"lecture" → 'LEC'；没有时是 ''
+function parseType(text) {
+  const m = text.match(/(?:^|[\s(\-])(lecture|discussion|laboratory|seminar|recitation|independent|studio|lec|dis|lab|plb|sem|ind|rec|stu)(?=$|[\s)\-,.])/i);
+  return m ? TYPE_WORDS[m[1].toUpperCase()] : '';
+}
+
+// ===== 课号 =====
+
+// 在一段文字里找课号。完整课号最好；只有简写（DS 110）时，和已经认出的课对一下（CDSDS 110 的后半段就是 DS 110）
+// 输入：文字、已经知道的课号列表
+// 输出：{ course, index, length, short }；没有课号时是 null
+function findCourse(text, knownCourses) {
+  const full = text.match(COURSE_CODE);
+  if (full) {
+    return { course: full[1] + ' ' + full[2], index: full.index, length: full[0].length, short: false };
+  }
+  const short = text.match(SHORT_CODE);
+  if (short) {
+    const tail = short[1] + ' ' + short[2];
+    const known = (knownCourses || []).find(function (c) { return c.slice(3) === tail; });
+    return { course: known || tail, index: short.index, length: short[0].length, short: true };
+  }
+  return null;
+}
+
+// ===== 地点 =====
 
 // 把地址文字拆成 { from, to, street }，比如 "685-725 Comm Ave CAS 211" → { 685, 725, 'commonwealth ave' }
 // 缩写统一成同一种写法，这样 "Comm Ave"、"Commonwealth Avenue" 都能和 data.json 里的地址对上
@@ -192,8 +377,7 @@ function parseAddress(text) {
 }
 
 // 按地址找楼：同一条街、门牌号范围有重叠就算对上
-// 有好几个对上时（比如 "685-725 Comm Ave" 同时包括 CAS 的 725 和 Warren 的 700），
-// 优先教学楼，再优先门牌号正好是范围两端的那个
+// 有好几个对上时（比如 "685-725 Comm Ave" 同时包括 CAS 和 Warren 的 700），优先教学楼，再优先门牌号正好是两端的那个
 function findPlaceByAddress(text, placeIndex) {
   const target = parseAddress(text);
   if (!target) {
@@ -239,10 +423,53 @@ function matchLocation(text, placeIndex) {
   return null;
 }
 
-// 统一时间的写法："2:30-3:20 pm" 和 "2:30 - 3:20 pm" 当成同一个，方便合并
-function normalizeTime(match) {
-  return `${match[1]} - ${match[2]} ${match[3].toLowerCase()}`;
+// 一段文字里的上课地点（比 matchLocation 多认两种）
+// 输出：{ place, code, room }；{ noRoom: true }（课表写了没有教室）；或者 null（没提到地点）
+function findLocation(text, placeIndex) {
+  if (/no room assigned|\bno room\b|\bTBA\b/i.test(text)) {
+    return { noRoom: true };
+  }
+  const location = matchLocation(text, placeIndex);
+  if (location) {
+    return location;
+  }
+  // 自己记的日历里常写成 "DS 110 lecture --CAS"
+  const tagged = text.match(/(?:--|—)\s*([A-Z]{2,4})(?:\s+([A-Z]?\d{1,4}[A-Z]?))?\b/);
+  if (tagged) {
+    const place = findPlace(placeIndex, tagged[1], false);
+    if (place) {
+      return { place: place, code: tagged[1], room: tagged[2] || '' };
+    }
+  }
+  return null;
 }
+
+// 一段文字里依次出现的所有教室（课程详情里可能有两个时段，各自一个教室）
+// 输出：数组，每一项是 { place, code, room } 或 { noRoom: true }
+function extractRooms(text, placeIndex) {
+  const rooms = [];
+  const re = /(No room assigned(?:\s+NO ROOM)?|NO ROOM|\bTBA\b)|\b([A-Z]{2,4})\s+([A-Z]?\d{1,4}[A-Z]?)\b/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    if (m[1]) {
+      rooms.push({ noRoom: true });
+    } else {
+      const place = findPlace(placeIndex, m[2], false);
+      if (place) {
+        rooms.push({ place: place, code: m[2], room: m[3] });
+      }
+    }
+  }
+  if (rooms.length === 0) {
+    const place = findPlaceByAddress(text, placeIndex);
+    if (place) {
+      rooms.push({ place: place, code: place.code || '', room: '' });
+    }
+  }
+  return rooms;
+}
+
+// ===== 版面：日历的列 =====
 
 // 找出表头的每一天，以及它在图片里的横坐标
 // 只有"整段文字就是一个日期"才算表头，比如 "SEP 28"、"MON"、"Monday 9/28"
@@ -260,9 +487,9 @@ function findDayColumns(segments) {
     const m = segment.text.match(monthDay);
     const w = segment.text.match(weekday);
     if (m) {
-      days.push({ label: m[1].toUpperCase() + ' ' + m[2], x: segment.x });
+      days.push({ label: m[1].toUpperCase() + ' ' + m[2], x: segment.x, y: segment.y });
     } else if (w) {
-      days.push({ label: w[1].toUpperCase(), x: segment.x });
+      days.push({ label: w[1].toUpperCase(), x: segment.x, y: segment.y });
     }
   });
   days.sort(function (a, b) { return a.x - b.x; });
@@ -293,9 +520,13 @@ function neighborsInCell(segments, index, direction) {
     .slice(0, 4);
 }
 
-// 这个片段在哪一天：看它的横坐标离哪个表头日期最近
+// 这个片段在星期几：看它的横坐标离哪个表头日期最近
 function dayOf(segment, dayColumns) {
   if (dayColumns.length === 0 || segment.x === null) {
+    return '';
+  }
+  // 在表头上面的（比如 "OTHER" 那一行里的线上课）不属于任何一天
+  if (segment.y < dayColumns[0].y) {
     return '';
   }
   let best = dayColumns[0];
@@ -304,118 +535,271 @@ function dayOf(segment, dayColumns) {
       best = d;
     }
   });
-  return best.label;
+  return headerToDay(best.label);
 }
 
-// 从文字片段里找出所有课程
-// 输入：片段数组、地点搜索索引（用来确认楼宇代码是真实存在的）
-// 输出：{ located, unlocated }
-//   located：  有地点的课 [{ title, course, section, time, code, room, place, days: ['SEP 28', ...] }]，同一门课的多次上课会合并
-//   unlocated：有课号、但没有地点的课（比如线上课）[{ title, course, section, time }]，交给用户决定：填地点，或者跳过
-function parseSchedule(segments, placeIndex) {
+// ===== 两种版面的读法 =====
+
+// 版面一：日历格子 / 一行行的文字。以课号为中心，往上找课名，往下找时间和教室
+function parseBlocks(segments, placeIndex, knownCourses) {
   const dayColumns = findDayColumns(segments);
-  const classes = [];
-  const usedCourses = new Set(); // 已经和某个地点配上对的课号片段，第二轮不再重复找
+  const isAnchor = function (s) { return findCourse(s.text, knownCourses) !== null; };
+  const meetings = [];
 
   segments.forEach(function (segment, i) {
-    // 这一段是不是上课地点：先按楼宇代码认，认不出再按地址认
-    const location = matchLocation(segment.text, placeIndex);
-    if (!location) {
+    const found = findCourse(segment.text, knownCourses);
+    if (!found) {
       return;
     }
+    const before = segment.text.slice(0, found.index).trim();
+    const after = segment.text.slice(found.index + found.length);
 
-    // 往上找同一格子里的：时间、课号、课名。碰到上一门课的地点就停
-    let time = '';
-    let course = '';
-    let section = '';
-    let title = '';
-    for (const above of neighborsInCell(segments, i, -1)) {
-      if (matchLocation(above.text, placeIndex)) {
-        break; // 已经到了上一门课
+    // 同一个格子里、课号下面的几行（碰到下一个课号就停）
+    const cell = [];
+    for (const s of neighborsInCell(segments, i, 1)) {
+      if (isAnchor(s)) {
+        break;
       }
-      const timeMatch = above.text.match(TIME_PATTERN);
-      const courseMatch = above.text.match(COURSE_PATTERN);
-      if (!time && timeMatch) {
-        time = normalizeTime(timeMatch);
-      } else if (!course && courseMatch) {
-        course = courseMatch[1] + ' ' + courseMatch[2];
-        section = courseMatch[3] || '';
-        usedCourses.add(above);
-      } else if (!title && course) {
+      cell.push(s);
+    }
+
+    // 课名：课号前面的文字；没有的话，用紧挨在上面的那一行（简写课号那一行本身就是课名，比如 "DS 110 lecture --CAS"）
+    let title = cleanTitle(before);
+    if (found.short) {
+      title = segment.text;
+    } else if (title.length < 3) {
+      const above = neighborsInCell(segments, i, -1)[0];
+      const close = above && (segment.y === null || Math.abs(above.y - segment.y) < segment.h * 2.5);
+      if (close && !isAnchor(above) && !parseTimeRange(above.text) && !findLocation(above.text, placeIndex)) {
         title = cleanTitle(above.text);
       }
     }
 
-    const day = dayOf(segment, dayColumns);
-    classes.push({
-      title: title || course || 'Class',
-      course: course,
-      section: section,
-      time: time,
-      code: location.code,
-      room: location.room,
-      place: location.place,
-      days: day ? [day] : []
-    });
-  });
-
-  // 合并：同一门课、同一时间、同一教室，只是日期不同 → 一条
-  const merged = [];
-  classes.forEach(function (c) {
-    const same = merged.find(function (m) {
-      return m.course === c.course && m.section === c.section && m.time === c.time &&
-        m.code === c.code && m.room === c.room;
-    });
-    if (same) {
-      c.days.forEach(function (d) {
-        if (!same.days.includes(d)) {
-          same.days.push(d);
+    // 时间、星期、教室：在课号这一行后半段和下面几行里找
+    let time = null;
+    let days = [];
+    let location = null;
+    [after].concat(cell.map(function (s) { return s.text; })).forEach(function (text) {
+      if (!time) {
+        time = parseTimeRange(text);
+        if (time) {
+          // 和时间写在同一行的 "MoWeFr" 才算星期（别处的 "We"、"Th" 可能只是普通单词）
+          days = sortDays([].concat.apply([], text.split(/\s+/).map(parseDayCodes)));
         }
-      });
+      }
+      if (!location) {
+        location = findLocation(text, placeIndex);
+      }
+    });
+    if (days.length === 0) {
+      const day = dayOf(segment, dayColumns);
+      if (day) {
+        days = [day];
+      }
+    }
+
+    meetings.push({
+      title: title,
+      course: found.course,
+      section: parseType(after),
+      time: time,
+      days: days,
+      location: location
+    });
+  });
+  return meetings;
+}
+
+// 版面二：课程详情（"Days:"、"Start:"、"Room:" 这种带标签的）
+const LABEL = /^(Days|Meets|Start|End|Room|Section|Instructor|Dates|Location)\s*:\s*/i;
+
+// 把同一高度的片段拼回一行（有位置时）；没有位置的文字本来就是一行一行的
+function groupRows(segments) {
+  if (segments.length === 0 || segments[0].y === null) {
+    return segments.map(function (s) { return s.text; });
+  }
+  const rows = [];
+  segments.slice().sort(function (a, b) { return a.y - b.y || a.x0 - b.x0; }).forEach(function (s) {
+    const row = rows[rows.length - 1];
+    if (row && Math.abs(row.y - s.y) < Math.max(row.h, s.h) * 0.6) {
+      row.parts.push(s);
     } else {
-      merged.push(c);
+      rows.push({ y: s.y, h: s.h, parts: [s] });
     }
   });
-
-  // 日期按表头从左到右的顺序排
-  const dayOrder = dayColumns.map(function (d) { return d.label; });
-  merged.forEach(function (c) {
-    c.days.sort(function (a, b) { return dayOrder.indexOf(a) - dayOrder.indexOf(b); });
+  return rows.map(function (row) {
+    return row.parts.sort(function (a, b) { return a.x0 - b.x0; }).map(function (p) { return p.text; }).join('   ');
   });
+}
 
-  // 第二轮：有课号、但没配上地点的课（比如 "AI at BU / XRGAI 500 (IND)"，线上课没有教室）
-  // 不自动放到地图上，只收集起来，交给用户决定
-  const unlocated = [];
-  segments.forEach(function (segment, i) {
-    const courseMatch = segment.text.match(COURSE_PATTERN);
-    if (!courseMatch || usedCourses.has(segment) || matchLocation(segment.text, placeIndex)) {
+function parseLabeled(rows, placeIndex, knownCourses) {
+  // 先按顺序读：遇到课号就开始一门新课，后面的标签都属于这门课
+  const entries = [];
+  let current = null;
+  rows.forEach(function (row) {
+    const label = row.match(LABEL);
+    if (!label) {
+      // 别的标签行（比如 "Class Notes: ... MA123 ..."）里的课号只是提到，不是一门新课
+      if (/^[A-Z][A-Za-z ]{1,25}:\s/.test(row)) {
+        return;
+      }
+      const found = findCourse(row, knownCourses);
+      // 简写课号（MA 123）在详情页里只有和已知的课对上才算
+      if (found && (!found.short || knownCourses.includes(found.course))) {
+        current = {
+          course: found.course,
+          title: cleanTitle(row.slice(0, found.index)) || found.course,
+          section: parseType(row.slice(found.index + found.length)),
+          fields: {}
+        };
+        entries.push(current);
+      }
       return;
     }
-    const course = courseMatch[1] + ' ' + courseMatch[2];
-    const section = courseMatch[3] || '';
-
-    // 同一门课（课号和类型都一样）只问一次；已经有地点的也不再问
-    const known = merged.concat(unlocated).some(function (c) {
-      return c.course === course && c.section === section;
-    });
-    if (known) {
-      return;
+    const key = label[1].toLowerCase();
+    if (current && !(key in current.fields)) {
+      current.fields[key] = row.slice(label[0].length);
     }
-
-    // 课名在上面一行，时间在下面一行
-    const above = neighborsInCell(segments, i, -1)[0];
-    const below = neighborsInCell(segments, i, 1)[0];
-    const timeMatch = below ? below.text.match(TIME_PATTERN) : null;
-
-    unlocated.push({
-      title: above ? cleanTitle(above.text) : course,
-      course: course,
-      section: section,
-      time: timeMatch ? normalizeTime(timeMatch) : ''
-    });
   });
 
-  return { located: merged, unlocated: unlocated };
+  // 每门课可能有好几个时段（"Multiple meeting pattern"），一列一个
+  const meetings = [];
+  entries.forEach(function (entry) {
+    const f = entry.fields;
+    const section = entry.section || parseType(f.section || '');
+    const patterns = [];
+
+    // 写法 1："Meets: MoWeFr 11:15AM - 12:05PM"
+    const meetsRe = /((?:Mo|Tu|We|Th|Fr|Sa|Su)+)\s+(\d{1,2}:\d{2}\s*[AaPp]\.?[Mm]\.?)\s*[-–—]\s*(\d{1,2}:\d{2}\s*[AaPp]\.?[Mm]\.?)/g;
+    let m;
+    while (f.meets && (m = meetsRe.exec(f.meets)) !== null) {
+      patterns.push({ days: parseDayCodes(m[1]), time: parseTimeRange(m[2] + ' - ' + m[3]) });
+    }
+
+    // 写法 2：分开的 "Days: MoWeFr  Th"、"Start: 9:05AM  6:30PM"、"End: 9:55AM  8:30PM"
+    if (patterns.length === 0 && (f.days || f.start)) {
+      const dayGroups = (f.days || '').split(/\s+/).map(parseDayCodes).filter(function (d) { return d.length > 0; });
+      const starts = findTimeTokens(f.start || '');
+      const ends = findTimeTokens(f.end || '');
+      const count = Math.max(dayGroups.length, starts.length, 1);
+      for (let k = 0; k < count; k++) {
+        patterns.push({
+          days: sortDays(dayGroups[k] || []),
+          time: starts[k] ? resolveTimes(starts[k], ends[k] || null) : null
+        });
+      }
+    }
+    if (patterns.length === 0) {
+      patterns.push({ days: [], time: null });
+    }
+
+    // 教室也是一列一个："675 Commonwealth Ave STO B50   No room assigned"
+    const rooms = extractRooms(f.room || f.location || '', placeIndex);
+    patterns.forEach(function (p, k) {
+      meetings.push({
+        title: entry.title,
+        course: entry.course,
+        section: section,
+        time: p.time,
+        days: p.days,
+        location: rooms[k] || null
+      });
+    });
+  });
+  return meetings;
+}
+
+// ===== 合并、整理 =====
+
+// 是不是同一个上课时段：先看课号（没有课号就看课名）；再看类型和时间。某一边没写类型 / 时间时，就不比那一项
+function sameMeeting(a, b) {
+  const keyA = (a.course || a.title || '').toUpperCase();
+  const keyB = (b.course || b.title || '').toUpperCase();
+  if (keyA === '' || keyA !== keyB) {
+    return false;
+  }
+  if (a.section && b.section && a.section !== b.section) {
+    return false;
+  }
+  if (a.start != null && b.start != null && a.start !== b.start) {
+    return false;
+  }
+  if (a.end != null && b.end != null && a.end !== b.end) {
+    return false;
+  }
+  return true;
+}
+
+// 排序：同一门课放在一起，再按类型、开始时间
+function compareMeetings(a, b) {
+  const keyA = a.course || a.title || '';
+  const keyB = b.course || b.title || '';
+  if (keyA !== keyB) {
+    return keyA < keyB ? -1 : 1;
+  }
+  if ((a.section || '') !== (b.section || '')) {
+    return (a.section || '') < (b.section || '') ? -1 : 1;
+  }
+  return (a.start == null ? 9999 : a.start) - (b.start == null ? 9999 : b.start);
+}
+
+// 把同一个时段的合并（星期合在一起），再分成"有地点"和"没地点"两组
+function buildResult(meetings) {
+  const merged = [];
+  meetings.forEach(function (m) {
+    const item = {
+      title: m.title || m.course,
+      course: m.course || '',
+      section: m.section || '',
+      start: m.time ? m.time.start : null,
+      end: m.time ? m.time.end : null,
+      time: m.time ? formatTimeRange(m.time) : '',
+      days: sortDays(m.days || []),
+      place: m.location && m.location.place ? m.location.place : null,
+      code: (m.location && m.location.code) || '',
+      room: (m.location && m.location.room) || '',
+      noRoom: Boolean(m.location && m.location.noRoom)
+    };
+
+    const same = merged.find(function (x) { return sameMeeting(x, item); });
+    if (!same) {
+      merged.push(item);
+      return;
+    }
+    same.days = sortDays(same.days.concat(item.days));
+    if (!same.place && item.place) {
+      Object.assign(same, { place: item.place, code: item.code, room: item.room, noRoom: false });
+    }
+    if (same.start == null && item.start != null) {
+      Object.assign(same, { start: item.start, end: item.end, time: item.time });
+    }
+    if (!same.section && item.section) {
+      same.section = item.section;
+    }
+    if (same.title === same.course && item.title !== item.course) {
+      same.title = item.title;
+    }
+  });
+
+  merged.sort(compareMeetings);
+  return {
+    located: merged.filter(function (m) { return m.place; }),
+    unlocated: merged.filter(function (m) { return !m.place; })
+  };
+}
+
+// 从文字片段里找出所有课程（截图、PDF、Word、粘贴的文字都走这里）
+// 输入：片段数组、地点搜索索引、已经知道的课号（用来认简写，比如 DS 110）
+// 输出：{ located, unlocated }
+//   located：  有地点的上课时段 [{ title, course, section, time, start, end, days, place, code, room }]
+//   unlocated：没地点的（线上课、课表写了 No room 等），交给用户决定
+function parseSchedule(segments, placeIndex, knownCourses) {
+  const rows = groupRows(segments);
+  const labelRows = rows.filter(function (r) { return LABEL.test(r); }).length;
+  const meetings = labelRows >= 2
+    ? parseLabeled(rows, placeIndex, knownCourses || [])
+    : parseBlocks(segments, placeIndex, knownCourses || []);
+  return buildResult(meetings);
 }
 
 console.log('schedule.js loaded');

@@ -39,13 +39,16 @@
       <!-- 区域 0.5：我的课（上传课表截图，识别出上课的楼并标在地图上） -->
       <section id="schedule-panel">
         <h2>My classes</h2>
-        <p class="hint">Upload one or more screenshots of your class schedule (hold Cmd to pick several). They are read in your browser and never uploaded.</p>
+        <p class="hint">Add your class schedule: screenshots, a calendar file (.ics), PDF, Word (.docx) or text. You can pick several at once. Files are read in your browser and never uploaded.</p>
+        <p class="hint"><strong>Most accurate:</strong> on your BU schedule page, click <em>Download (.ics)</em> and add that file.</p>
 
-        <!-- accept="image/*"：选择文件时只显示图片；multiple：可以一次选多张 -->
-        <input type="file" id="schedule-file" accept="image/*" multiple>
+        <!-- accept：可以选图片、.ics、PDF、Word、文字；multiple：可以一次选多个 -->
+        <input type="file" id="schedule-file" multiple
+               accept="image/*,.ics,text/calendar,.pdf,application/pdf,.docx,.txt,text/plain">
 
-        <!-- 隐藏的上传框：给"针对某一门课再传一张截图"用，由按钮触发 -->
-        <input type="file" id="class-scan-file" accept="image/*" hidden>
+        <!-- 隐藏的上传框：给"针对某一门课再传一个文件"用，由按钮触发 -->
+        <input type="file" id="class-scan-file" hidden
+               accept="image/*,.ics,text/calendar,.pdf,application/pdf,.docx,.txt,text/plain">
 
         <!-- 识别不准时的备用方式：直接粘贴课表文字 -->
         <details id="schedule-paste">
@@ -126,6 +129,7 @@
   <script src="geocode.js"></script>
   <script src="route-api.js"></script>
   <script src="schedule.js"></script>
+  <script src="schedule-import.js"></script>
   <script src="course-guess.js"></script>
   <script src="my-classes.js"></script>
   <script src="map.js"></script>

@@ -101,11 +101,6 @@ function buildingColor(place) {
   return buildingColors[place.id];
 }
 
-// 一门课的"身份"：课号 + 类型 + 时间都一样，就是同一门课（用来合并多张截图的结果）
-function classKey(c) {
-  return [c.course, c.section, c.time].join('|');
-}
-
 // ===== 状态变化 =====
 
 // 记下现在的样子，以便 Undo；然后执行修改、重新显示、弹出提示
@@ -143,20 +138,20 @@ function addParsedSchedule(result) {
   let filledIn = 0; // 新截图帮多少门"原来没地点"的课找到了地点
 
   incoming.forEach(function (c) {
-    const existing = myClasses.items.find(function (item) { return sameClass(item, c); });
+    // 先对课号，再对类型和时间（规则在 schedule.js 的 sameMeeting 里）
+    const existing = myClasses.items.find(function (item) { return sameMeeting(item, c); });
     if (!existing) {
       c.id = nextClassId++;
       myClasses.items.push(c);
       return;
     }
-    // 同一门课：合并上课日期
-    c.days.forEach(function (d) {
-      if (!existing.days.includes(d)) {
-        existing.days.push(d);
-      }
-    });
-    if (!existing.time && c.time) {
-      existing.time = c.time;
+    // 同一个上课时段：合并星期；补上原来没读到的时间、类型
+    existing.days = sortDays(existing.days.concat(c.days));
+    if (existing.start == null && c.start != null) {
+      Object.assign(existing, { start: c.start, end: c.end, time: c.time });
+    }
+    if (!existing.section && c.section) {
+      existing.section = c.section;
     }
     // 新截图里读到了地点，而原来还在等确认：这是从课表读到的事实，直接用（有 Undo）
     // 用户自己跳过的课不动，尊重用户的决定
@@ -173,12 +168,9 @@ function addParsedSchedule(result) {
   return filledIn;
 }
 
-// 是不是同一门课：课号和类型一样，时间也一样（某一张截图没读到时间时，只看课号和类型）
-function sameClass(a, b) {
-  if (a.course !== b.course || a.section !== b.section) {
-    return false;
-  }
-  return !a.time || !b.time || a.time === b.time;
+// 现在知道的所有课号（用来认简写，比如 Google 日历里的 "DS 110" → CDSDS 110）
+function knownCourses() {
+  return myClasses.items.map(function (c) { return c.course; }).filter(Boolean);
 }
 
 // ===== 显示 =====
@@ -191,8 +183,9 @@ function renderMyClasses() {
   const list = document.getElementById('schedule-list');
   const status = document.getElementById('schedule-status');
 
-  const confirmed = items.filter(function (c) { return c.status === 'confirmed'; });
-  const review = items.filter(function (c) { return c.status === 'guess' || c.status === 'none'; });
+  // 排序：同一门课的不同时段（lecture、discussion…）放在一起
+  const confirmed = items.filter(function (c) { return c.status === 'confirmed'; }).sort(compareMeetings);
+  const review = items.filter(function (c) { return c.status === 'guess' || c.status === 'none'; }).sort(compareMeetings);
   const skipped = items.filter(function (c) { return c.status === 'skipped'; });
 
   if (items.length === 0) {
@@ -221,7 +214,7 @@ function renderMyClasses() {
   // 1. 需要确认的放最上面，并有一个醒目的提示
   if (review.length > 0) {
     html += `<div class="review-banner">⚠ ${review.length} ${review.length === 1 ? 'class needs' : 'classes need'} your check before ${review.length === 1 ? 'it is' : 'they are'} on your map.
-      <button type="button" class="banner-button" data-action="scan-all">📷 Scan another screenshot</button>
+      <button type="button" class="banner-button" data-action="scan-all">📷 Add another screenshot or file</button>
       <span class="banner-hint">Rooms we can read from it are filled in for you.</span>
     </div>`;
     html += '<ul class="class-list">' + review.map(renderCard).join('') + '</ul>';
@@ -290,9 +283,10 @@ function renderCard(c) {
   }
 
   // 需要确认的：收起时只说"可能在哪"，必须点 Review 才能看到详细信息并确认
+  const noRoomText = c.noRoom ? 'Your schedule says "No room assigned".' : 'No room listed.';
   const hint = c.status === 'guess'
-    ? `No room listed. Possible: ${c.candidates.map(function (o) { return escapeHtml(o.place.code || o.place.name); }).join(' or ')}.`
-    : "No room listed, and we can't guess one (online class?).";
+    ? `${noRoomText} Possible: ${c.candidates.map(function (o) { return escapeHtml(o.place.code || o.place.name); }).join(' or ')}.`
+    : `${noRoomText} We can't guess one (online class?).`;
   return `
     <li class="class-card review" data-id="${c.id}">
       <span class="badge badge-review">❓ Needs your check</span>
@@ -361,7 +355,7 @@ function renderEditor(c) {
       <p class="card-note">${intro}</p>
       <div class="location-options">${optionsHtml}</div>
       <button type="button" class="primary-button" data-action="confirm" disabled>Choose a location above</button>
-      <button type="button" class="scan-one-button" data-action="scan-one">📷 Scan a screenshot that shows this class</button>
+      <button type="button" class="scan-one-button" data-action="scan-one">📷 Add a screenshot or file that shows this class</button>
       <p class="scan-message option-note">${c.scanMessage ? escapeHtml(c.scanMessage) : ''}</p>
       <div class="secondary-actions">
         <button type="button" class="link-button" data-action="skip">${isEdit ? 'Remove from my map' : "It's online · Skip"}</button>
@@ -527,70 +521,68 @@ function undoLastChange() {
 
 // ===== 读取课表 =====
 
-// 识别一张截图，返回 parseSchedule 的结果；失败时返回 null
-// 输入：图片文件、这是第几张 / 一共几张（用来显示进度）
-async function readOneScreenshot(file, number, total) {
+// 读一个课表文件（截图、.ics、PDF、Word、文字都行），返回 { located, unlocated }
+// 读不了时返回 { error: '给用户看的原因' }
+// 输入：文件、这是第几个 / 一共几个（用来显示进度）
+async function readOneFile(file, number, total) {
   const status = document.getElementById('schedule-status');
-  const which = total > 1 ? `screenshot ${number} of ${total}` : 'your schedule';
-  status.textContent = 'Loading the text reader (first time takes a few seconds)…';
+  const prefix = total > 1 ? `(${number} of ${total}) ` : '';
   try {
-    const lines = await readScheduleImage(file, function (progress) {
-      status.textContent = `Reading ${which}… ${Math.round(progress * 100)}%`;
+    return await readScheduleFile(file, myClasses.placeIndex, knownCourses(), function (message) {
+      status.textContent = prefix + message;
     });
-    console.log(`OCR lines (${file.name}):`, lines.map(function (l) { return l.text; }));
-    return parseSchedule(lines, myClasses.placeIndex);
   } catch (error) {
-    console.log('OCR failed:', error);
-    return null;
+    console.log('Reading failed:', error);
+    return { error: error.message || `Couldn't read ${file.name}.` };
   }
 }
 
-// 上传了一张或多张截图：一张一张识别，结果合并进列表
+// 上传了一个或多个文件：一个一个读，结果合并进列表
 async function handleScheduleFiles(files) {
+  const status = document.getElementById('schedule-status');
   const hadClasses = myClasses.items.length > 0;
-  // 记下识别之前的样子：如果新截图自动补上了地点，用户可以 Undo
+  // 记下读之前的样子：如果新文件自动补上了地点，用户可以 Undo
   const before = myClasses.items.map(function (item) {
     return Object.assign({}, item, { days: item.days.slice() });
   });
 
   let filledIn = 0;
-  let failed = 0;
+  const errors = [];
   for (let i = 0; i < files.length; i++) {
-    const result = await readOneScreenshot(files[i], i + 1, files.length);
-    if (result) {
-      filledIn += addParsedSchedule(result);
+    const result = await readOneFile(files[i], i + 1, files.length);
+    if (result.error) {
+      errors.push(result.error);
     } else {
-      failed++;
+      filledIn += addParsedSchedule(result);
     }
   }
 
-  if (failed > 0) {
-    document.getElementById('schedule-status').textContent =
-      `Couldn't read ${failed} of ${files.length} screenshots. Try a clearer one, or paste the text instead.`;
+  if (errors.length > 0) {
+    status.textContent = errors.join(' ');
   }
-  // 之前已经有课、这次新截图补上了地点：告诉用户补了几门，可以撤销
+  // 之前已经有课、这次新文件补上了地点：告诉用户补了几门，可以撤销
   if (hadClasses && filledIn > 0) {
     myClasses.undo = before;
-    showToast(`Updated ${filledIn} ${filledIn === 1 ? 'class' : 'classes'} from your new screenshot`);
+    showToast(`Updated ${filledIn} ${filledIn === 1 ? 'class' : 'classes'} from your new file`);
   }
 }
 
-// 针对某一门课再传一张截图：只在新截图里找这门课的课号，找到就作为"建议地点"，仍然要用户确认
+// 针对某一门课再传一个文件：先对课号，再对类型和时间；找到有教室的，就作为"建议地点"，仍然要用户确认
 async function handleClassScan(file) {
   const item = myClasses.items.find(function (c) { return c.id === myClasses.scanTargetId; });
   if (!item) {
     return;
   }
-  const result = await readOneScreenshot(file, 1, 1);
-  const found = result && result.located.find(function (c) {
-    return c.course === item.course && (!c.section || !item.section || c.section === item.section);
-  });
+  const result = await readOneFile(file, 1, 1);
+  const found = !result.error && result.located.find(function (c) { return sameMeeting(c, item); });
 
   if (found) {
     item.scanSuggestion = { place: found.place, room: found.room };
-    item.scanMessage = `Found ${item.course} in your screenshot — please confirm the location above.`;
+    item.scanMessage = `Found ${item.course} in your file — please confirm the location above.`;
+  } else if (result.error) {
+    item.scanMessage = result.error;
   } else {
-    item.scanMessage = `Couldn't find ${item.course} with a room in that screenshot. Try a screenshot where this class shows its room.`;
+    item.scanMessage = `Couldn't find ${item.course}${item.time ? ' at ' + item.time : ''} with a room in that file. Try one where this class shows its room.`;
   }
   myClasses.openId = item.id; // 保持展开，让用户直接看到结果
   renderMyClasses();
@@ -600,7 +592,7 @@ async function handleClassScan(file) {
 function initMyClasses(placeIndex) {
   myClasses.placeIndex = placeIndex;
 
-  // 上传一张或多张截图。处理完把输入框清空，这样再选同一张图也会触发
+  // 上传一个或多个文件。处理完把输入框清空，这样再选同一个文件也会触发
   document.getElementById('schedule-file').addEventListener('change', async function (event) {
     const files = Array.from(event.target.files);
     if (files.length > 0) {
@@ -620,7 +612,7 @@ function initMyClasses(placeIndex) {
 
   document.getElementById('schedule-text-button').addEventListener('click', function () {
     const text = document.getElementById('schedule-text').value;
-    addParsedSchedule(parseSchedule(textToLines(text), placeIndex));
+    addParsedSchedule(parseSchedule(textToLines(text), placeIndex, knownCourses()));
   });
 
   const list = document.getElementById('schedule-list');

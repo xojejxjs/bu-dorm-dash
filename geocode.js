@@ -40,7 +40,9 @@ async function geocodeAddress(text) {
         latitude: Number(results[0].lat),
         longitude: Number(results[0].lon),
         // display_name 很长（"1200, Commonwealth Avenue, Allston, Boston, ..."），只留前两段
-        label: results[0].display_name.split(',').slice(0, 2).join(',')
+        label: results[0].display_name.split(',').slice(0, 2).join(','),
+        // 地图上这个地方的名字（比如 "Physics and Biology Research Building"）；没有名字时是空的
+        name: results[0].name || ''
       };
     }
     geocodeCache[key] = found; // 找到和确定找不到，都记下来

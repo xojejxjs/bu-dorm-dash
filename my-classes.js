@@ -186,6 +186,107 @@ function loadSavedClasses(placeIndex) {
   }
 }
 
+// ===== 用户自己输入的地址（数据里还没有的楼） =====
+//
+// 我们的楼宇数据还不完整。用户输入一个不认识的地址（比如 "3 Cummington Mall"）时，
+// 不能直接说"找不到"：先去地图服务（OpenStreetMap）查，查到了就变成一个新地点，
+// 加进搜索索引（Route check 也能用），并存在这个浏览器里，下次直接认得
+
+const CUSTOM_PLACES_KEY = 'bu-dorm-dash:custom-places';
+const SAME_BUILDING_METERS = 40; // 查到的位置离已有的楼这么近，就当作是那栋楼
+
+// 把一个地点加进搜索索引：名字、地址都能搜到
+function addPlaceToIndex(place, placeIndex) {
+  [place.name, place.address].forEach(function (label) {
+    if (label) {
+      placeIndex.push({ label: label, place: place });
+    }
+  });
+}
+
+function loadCustomPlaces(placeIndex) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CUSTOM_PLACES_KEY));
+    (Array.isArray(saved) ? saved : []).forEach(function (place) { addPlaceToIndex(place, placeIndex); });
+  } catch (error) {
+    console.log("Couldn't read saved places:", error);
+  }
+}
+
+function saveCustomPlace(place) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CUSTOM_PLACES_KEY)) || [];
+    saved.push(place);
+    localStorage.setItem(CUSTOM_PLACES_KEY, JSON.stringify(saved));
+  } catch (error) {
+    console.log("Couldn't save place:", error);
+  }
+}
+
+// 查一个数据里没有的地址
+// 输入：用户输入的文字
+// 输出：{ place, room }（和 resolveLocationText 一样）；查不到时是 null
+async function lookUpAddress(text, placeIndex) {
+  const found = await geocodeAddress(text);
+  if (!found) {
+    return null;
+  }
+
+  // 1. 离已有的某栋楼很近：就是那栋楼（比如输入 "665 Comm Ave" → CDS），不新建
+  let nearest = null;
+  let nearestMeters = Infinity;
+  placeIndex.forEach(function (entry) {
+    const meters = getDistance(found.latitude, found.longitude, entry.place.latitude, entry.place.longitude);
+    if (meters < nearestMeters) {
+      nearest = entry.place;
+      nearestMeters = meters;
+    }
+  });
+  if (nearest && nearestMeters <= SAME_BUILDING_METERS) {
+    return { place: nearest, room: '' };
+  }
+
+  // 2. 真的是新地方：建一个新地点，加进索引，存起来
+  const address = text.trim();
+  const place = {
+    id: 'custom-' + Date.now(),
+    name: found.name || address,
+    address: address,
+    code: '',
+    latitude: found.latitude,
+    longitude: found.longitude,
+    kind: 'building',
+    type: 'academic',
+    custom: true // 用户自己加的，不在 data.json 里
+  };
+  addPlaceToIndex(place, placeIndex);
+  saveCustomPlace(place);
+  return { place: place, room: '' };
+}
+
+// 点 "Look up this address"（或在输入框里按回车）
+async function handleAddressLookup(card) {
+  const input = card.querySelector('.other-location');
+  const preview = card.querySelector('.other-preview');
+  const text = input.value;
+  if (text.trim() === '') {
+    return;
+  }
+  preview.textContent = '→ Looking up this address…';
+  const found = await lookUpAddress(text, myClasses.placeIndex);
+  if (input.value !== text) {
+    return; // 查的时候用户又改了文字：以新的为准
+  }
+  if (found) {
+    // 让输入框里的文字直接对应到这个地点，确认按钮就能用了
+    input.value = found.place.address === text.trim() ? text.trim() : found.place.name;
+    card.querySelector('input[type="radio"][value="other"]').checked = true;
+    updateConfirmButton(card);
+  } else {
+    preview.textContent = "→ Couldn't find this address in Boston. Check the spelling, or try a building code like SCI 107.";
+  }
+}
+
 // ===== 示例课表 =====
 //
 // 给手边没有课表的人试用（比如活动现场扫码打开的人）
@@ -602,7 +703,7 @@ function renderEditor(c) {
       <input type="radio" name="location-${c.id}" value="other">
       <span>
         <strong>Somewhere else</strong>
-        <input type="search" class="other-location" list="place-options" placeholder="e.g. CAS 211, SCI 107, GSU">
+        <input type="search" class="other-location" list="place-options" placeholder="e.g. CAS 211, GSU, 3 Cummington Mall">
         <span class="other-preview option-note"></span>
       </span>
     </label>`;
@@ -663,9 +764,15 @@ function updateConfirmButton(card) {
     preview.textContent = '';
   } else {
     const found = resolveLocationText(otherText, myClasses.placeIndex);
-    preview.textContent = found
-      ? '→ ' + found.place.name + (found.room ? ', room ' + found.room : '')
-      : "→ Can't find that yet. Try a building code like SCI 107.";
+    if (found) {
+      const where = found.place.custom && found.place.name !== found.place.address
+        ? `${found.place.name} (${found.place.address})` : found.place.name;
+      preview.textContent = '→ ' + where + (found.room ? ', room ' + found.room : '');
+    } else {
+      // 不在我们的数据里：不直接说找不到，让用户去地图上查（按回车也可以）
+      preview.innerHTML = 'Not in our building list yet. ' +
+        '<button type="button" class="small-button" data-action="lookup-address">🔍 Look up this address</button>';
+    }
   }
 
   if (selection) {
@@ -749,6 +856,11 @@ function handleListClick(event) {
     changeWithUndo(`Cleared ${n} ${n === 1 ? 'class' : 'classes'}`, function () {
       myClasses.items = [];
     });
+    return;
+  }
+
+  if (action === 'lookup-address') {
+    handleAddressLookup(button.closest('[data-id]'));
     return;
   }
 
@@ -987,6 +1099,16 @@ function initMyClasses(placeIndex) {
 
   const list = document.getElementById('schedule-list');
   list.addEventListener('click', handleListClick);
+  // 在"别的地方"输入框里按回车：数据里没有这个地点的话，去地图上查
+  list.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' && event.target.classList.contains('other-location')) {
+      event.preventDefault();
+      const card = event.target.closest('[data-id]');
+      if (!resolveLocationText(event.target.value, myClasses.placeIndex)) {
+        handleAddressLookup(card);
+      }
+    }
+  });
   list.addEventListener('input', handleListInput);  // 在"别的地方"输入框里打字
   list.addEventListener('change', handleListInput); // 选了某个单选项
 
@@ -995,6 +1117,9 @@ function initMyClasses(placeIndex) {
       undoLastChange();
     }
   });
+
+  // 用户以前自己加过的地点：先放回索引里，下面读回的课才找得到它们的楼
+  loadCustomPlaces(placeIndex);
 
   // 上次存在这个浏览器里的课：读回来直接显示，不用再上传
   const saved = loadSavedClasses(placeIndex);

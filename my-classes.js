@@ -36,7 +36,16 @@ function escapeAttr(text) {
 
 // 一门课在 From / To 候选列表里显示的名字，比如 "Calculus 1 (CASMA 123 DIS)"
 function myClassLabel(c) {
-  return `${c.title} (${c.course}${c.section ? ' ' + c.section : ''})`;
+  const base = `${c.title} (${c.course}${c.section ? ' ' + c.section : ''})`;
+  // 同名的有好几个时段（比如 .ics 里没写 LEC / DIS 的同一门课）：加上开始时间，才分得清
+  const sameName = myClasses.items.filter(function (other) {
+    return other.status === 'confirmed' && other.title === c.title && other.course === c.course &&
+      (other.section || '') === (c.section || '');
+  });
+  if (sameName.length > 1 && c.start != null) {
+    return `${c.title} (${c.course}${c.section ? ' ' + c.section : ''} · ${formatClock(c.start)})`;
+  }
+  return base;
 }
 
 // From / To 候选列表里的"我的课"：只放已经确定地点的课

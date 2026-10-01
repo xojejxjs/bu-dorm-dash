@@ -189,6 +189,11 @@ function parseIcs(text, placeIndex, knownCourses) {
     const description = icsField(event, 'DESCRIPTION');
     const locationText = icsField(event, 'LOCATION');
 
+    // 期末考试（"Exam - SHAHF 150"）只有一天，不是每周的课，跳过
+    if (/^exam\b/i.test(summary)) {
+      return;
+    }
+
     // 只要课：标题或说明里有课号的才算（个人日程，比如 "yoga"，会被跳过）
     const found = findCourse(summary, knownCourses) || findCourse(description, knownCourses);
     if (!found) {
@@ -214,7 +219,8 @@ function parseIcs(text, placeIndex, knownCourses) {
 
     const sectionLine = (description.match(/section[^\n]*/i) || [''])[0];
     meetings.push({
-      title: title.length >= 3 ? title : found.course,
+      // BU 的 .ics：SUMMARY 只有课号（"CDSDS 110"），课名写在 DESCRIPTION 里（"Intro to DS with Python"）
+      title: title.length >= 3 ? title : (description.split('\n')[0].trim() || found.course),
       course: found.course,
       section: parseType(summary.slice(found.index + found.length)) || parseType(sectionLine),
       time: start ? { start: start.minutes, end: end ? end.minutes : null } : null,

@@ -496,6 +496,12 @@ function findDayColumns(segments) {
   return days;
 }
 
+// 是不是日历表头（"SEP 28"、"MON 28"、"Monday"）
+function isDayHeader(text) {
+  const pattern = new RegExp('^(' + MONTHS.concat(WEEKDAYS).join('|') + ')[A-Z]*\\.?(\\s+\\d{1,2}(/\\d{1,2})?)?$', 'i');
+  return pattern.test(text.trim());
+}
+
 // 找出和某个片段"在同一个格子里"的其他片段，按离它的远近排好
 // 有位置：横向有重叠（同一列），纵向在 5 行以内，而且在它上面（direction = -1）或下面（direction = 1）
 // 没有位置（粘贴的文字）：就按上下行的顺序
@@ -586,10 +592,25 @@ function parseBlocks(segments, placeIndex, knownCourses) {
     if (found.short) {
       title = segment.text;
     } else if (title.length < 3) {
-      const above = neighborsInCell(segments, i, -1)[0];
-      const close = above && (segment.y === null || Math.abs(above.y - segment.y) < segment.h * 2.5);
-      if (close && !isAnchor(above) && !parseTimeRange(above.text) && !findLocation(above.text, placeIndex)) {
-        title = cleanTitle(above.text);
+      // 格子窄的时候，课名会折成好几行（"Experience" / "Management"）：一行一行往上收，直到不像课名为止
+      const parts = [];
+      let lower = segment;
+      for (const above of neighborsInCell(segments, i, -1)) {
+        const close = segment.y === null || Math.abs(above.y - lower.y) < segment.h * 2.5;
+        // 同一个格子里的字是左对齐的；左边差太多，就是别的东西（比如时间轴、表头）
+        const aligned = segment.x0 === null || Math.abs(above.x0 - segment.x0) < segment.h * 1.5;
+        if (!close || !aligned || isAnchor(above) || parseTimeRange(above.text) ||
+            findLocation(above.text, placeIndex) || /:\s*$/.test(above.text) || isDayHeader(above.text)) {
+          break;
+        }
+        parts.unshift(above.text);
+        lower = above;
+        if (parts.length === 3) {
+          break;
+        }
+      }
+      if (parts.length > 0) {
+        title = cleanTitle(parts.join(' '));
       }
     }
 
@@ -628,10 +649,16 @@ function parseBlocks(segments, placeIndex, knownCourses) {
       }
     }
 
+    // 类型可能折到下一行（"CDSDS 110" / "(DIS)"）
+    let section = parseType(after);
+    if (!section && cell[0] && /^\(?[A-Za-z]{3}\)?$/.test(cell[0].text.trim())) {
+      section = parseType(cell[0].text);
+    }
+
     meetings.push({
       title: title,
       course: found.course,
-      section: parseType(after),
+      section: section,
       time: time,
       days: days,
       location: location

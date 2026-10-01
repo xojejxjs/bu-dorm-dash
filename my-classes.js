@@ -112,6 +112,79 @@ function buildingColor(place) {
   return buildingColors[place.id];
 }
 
+// ===== 保存在这个浏览器里（localStorage） =====
+//
+// 下次打开网页，课还在，不用再传一遍
+// 只存课的信息（课号、时间、楼、教室、有没有确认），截图和文件本身不存，也不会上传到任何服务器
+// 地点只存 id（比如 'cas'）：读回来时再到地点数据里找，这样 data.json 里的楼改了地址，也会用新的
+
+// 名字前面加上网站名，免得和同一个网址下的其他网页冲突
+const SAVED_CLASSES_KEY = 'bu-dorm-dash:my-classes';
+
+// 把一门课变成可以存的样子（只有文字和数字）
+function classToSaved(c) {
+  return {
+    title: c.title, course: c.course, section: c.section,
+    start: c.start, end: c.end, time: c.time, days: c.days,
+    placeId: c.place ? c.place.id : null, code: c.code, room: c.room, noRoom: c.noRoom,
+    status: c.status, source: c.source, statusBeforeSkip: c.statusBeforeSkip || null,
+    suggestion: c.scanSuggestion ? { placeId: c.scanSuggestion.place.id, room: c.scanSuggestion.room } : null
+  };
+}
+
+// 存下来的样子 → 一门课；地点找不到了（比如那栋楼从数据里删掉了）就当作没有地点，让用户重新确认
+function savedToClass(s, placeIndex) {
+  const byId = function (id) {
+    const entry = id ? placeIndex.find(function (e) { return e.place.id === id; }) : null;
+    return entry ? entry.place : null;
+  };
+  const place = byId(s.placeId);
+  const candidates = guessLocations(s.course, placeIndex); // 推测的候选楼不存，每次重新算
+  const suggested = s.suggestion ? byId(s.suggestion.placeId) : null;
+  const lostPlace = s.placeId && !place;
+  const noPlaceStatus = candidates.length > 0 ? 'guess' : 'none';
+  return {
+    id: nextClassId++,
+    title: s.title || s.course || 'Class', course: s.course || '', section: s.section || '',
+    start: s.start == null ? null : s.start, end: s.end == null ? null : s.end, time: s.time || '',
+    days: Array.isArray(s.days) ? s.days : [],
+    place: place, code: place ? (s.code || '') : '', room: place ? (s.room || '') : '', noRoom: Boolean(s.noRoom),
+    candidates: candidates,
+    status: lostPlace && s.status === 'confirmed' ? noPlaceStatus : (s.status || noPlaceStatus),
+    source: s.source || null,
+    statusBeforeSkip: s.statusBeforeSkip || undefined,
+    scanSuggestion: suggested ? { place: suggested, room: s.suggestion.room || '' } : null,
+    scanMessage: ''
+  };
+}
+
+function saveMyClasses() {
+  try {
+    if (myClasses.items.length === 0) {
+      localStorage.removeItem(SAVED_CLASSES_KEY);
+    } else {
+      localStorage.setItem(SAVED_CLASSES_KEY, JSON.stringify({ version: 1, items: myClasses.items.map(classToSaved) }));
+    }
+  } catch (error) {
+    // 无痕模式、浏览器禁止存储时会出错：存不了也不影响使用，只是下次要重新导入
+    console.log("Couldn't save classes:", error);
+  }
+}
+
+// 读回上次存的课；没有或读不懂时返回空数组
+function loadSavedClasses(placeIndex) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVED_CLASSES_KEY));
+    if (!saved || !Array.isArray(saved.items)) {
+      return [];
+    }
+    return saved.items.map(function (s) { return savedToClass(s, placeIndex); });
+  } catch (error) {
+    console.log("Couldn't read saved classes:", error);
+    return [];
+  }
+}
+
 // ===== 状态变化 =====
 
 // 记下现在的样子，以便 Undo；然后执行修改、重新显示、弹出提示
@@ -176,6 +249,10 @@ function addParsedSchedule(result) {
   });
 
   renderMyClasses();
+  if (incoming.length === 0) {
+    document.getElementById('schedule-status').textContent =
+      "Couldn't find any classes. Try a clearer screenshot, or paste the text instead.";
+  }
   return filledIn;
 }
 
@@ -187,6 +264,9 @@ function knownCourses() {
 // ===== 显示 =====
 
 function renderMyClasses() {
+  // 所有修改最后都会走到这里重新显示，所以在这里保存，就不会漏存任何一次修改
+  saveMyClasses();
+
   // 课表变了（确认、编辑、跳过、新截图）：From / To 的候选列表跟着更新
   renderPlaceOptions();
 
@@ -200,7 +280,7 @@ function renderMyClasses() {
   const skipped = items.filter(function (c) { return c.status === 'skipped'; });
 
   if (items.length === 0) {
-    status.textContent = "Couldn't find any classes. Try a clearer screenshot, or paste the text instead.";
+    status.textContent = '';
     list.innerHTML = '';
     clearClassMarkers();
     return;
@@ -248,6 +328,12 @@ function renderMyClasses() {
         </li>`;
     });
     html += '</ul></details>';
+  }
+
+  // 4. 告诉用户课存在哪里，并且可以一键清空（比如用的是公用电脑）
+  if (!myClasses.selecting) {
+    html += `<p class="saved-note">💾 Saved in this browser only, so your classes are still here next time.
+      <button type="button" class="link-button" data-action="clear-all">Clear all classes</button></p>`;
   }
 
   list.innerHTML = html;
@@ -582,6 +668,15 @@ function handleListClick(event) {
     return;
   }
 
+  // 清空所有的课（包括跳过的），这个浏览器里存的也一起删掉；8 秒内可以 Undo
+  if (action === 'clear-all') {
+    const n = myClasses.items.length;
+    changeWithUndo(`Cleared ${n} ${n === 1 ? 'class' : 'classes'}`, function () {
+      myClasses.items = [];
+    });
+    return;
+  }
+
   // 提示条上的"再传一张截图"：不属于某一门课，打开普通的上传框
   if (action === 'scan-all') {
     document.getElementById('schedule-file').click();
@@ -816,6 +911,15 @@ function initMyClasses(placeIndex) {
       undoLastChange();
     }
   });
+
+  // 上次存在这个浏览器里的课：读回来直接显示，不用再上传
+  const saved = loadSavedClasses(placeIndex);
+  if (saved.length > 0) {
+    myClasses.items = saved;
+    renderMyClasses();
+    const status = document.getElementById('schedule-status');
+    status.textContent = `Welcome back: loaded ${saved.length} saved ${saved.length === 1 ? 'class' : 'classes'}. ` + status.textContent;
+  }
 }
 
 console.log('my-classes.js loaded');

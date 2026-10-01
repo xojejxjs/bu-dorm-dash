@@ -633,3 +633,14 @@ main {
     border-top: 1px solid #ddd;
   }
 }
+
+/* ===== 课存在这个浏览器里的说明 + 清空按钮 ===== */
+.saved-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #666;
+}
+
+.saved-note .link-button {
+  color: #c62828;
+}

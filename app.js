@@ -6,7 +6,7 @@ console.log('app.js loaded');
 // 读取 data.json，并返回里面的数据
 // async 表示这个函数里有"需要等待"的操作（读文件需要时间）
 async function loadData() {
-  const response = await fetch('data.json'); // 1. 向服务器请求 data.json 这个文件
+  const response = await fetch('data.json?v=' + APP_VERSION); // 1. 向服务器请求 data.json 这个文件
   const data = await response.json();        // 2. 把文件里的文字解析成 JavaScript 对象
   return data;
 }
@@ -15,7 +15,7 @@ async function loadData() {
 // 读不到也不影响网站其他功能，所以出错时返回空对象，而不是让整个页面报错
 async function loadShapes() {
   try {
-    const response = await fetch('shapes.json');
+    const response = await fetch('shapes.json?v=' + APP_VERSION);
     if (!response.ok) {
       return {};
     }
@@ -162,7 +162,7 @@ let walkTableIndex = {};
 // 读取 walk-times.json。和 shapes.json 一样：读不到也不影响网站，只是全部退回到直线估算
 async function loadWalkTimes() {
   try {
-    const response = await fetch('walk-times.json');
+    const response = await fetch('walk-times.json?v=' + APP_VERSION);
     if (!response.ok) {
       return null;
     }

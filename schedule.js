@@ -556,11 +556,16 @@ function dayOf(segment, dayColumns) {
 // 版面一：日历格子 / 一行行的文字。以课号为中心，往上找课名，往下找时间和教室
 function parseBlocks(segments, placeIndex, knownCourses) {
   const dayColumns = findDayColumns(segments);
-  const isAnchor = function (s) { return findCourse(s.text, knownCourses) !== null; };
+  // 简写课号（MA123）出现在一整句话里时，只是"提到"，不是一门课（比如 "Students registered for MA123 need to…"）
+  const anchorOf = function (text) {
+    const found = findCourse(text, knownCourses);
+    return found && (!found.short || text.split(/\s+/).length <= 6) ? found : null;
+  };
+  const isAnchor = function (s) { return anchorOf(s.text) !== null; };
   const meetings = [];
 
   segments.forEach(function (segment, i) {
-    const found = findCourse(segment.text, knownCourses);
+    const found = anchorOf(segment.text);
     if (!found) {
       return;
     }

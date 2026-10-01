@@ -9,7 +9,7 @@
   <!-- Leaflet 的样式文件，必须引入，否则地图显示会错乱 -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=2026-09-30c" />
 </head>
 <body>
 
@@ -125,15 +125,17 @@
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <!-- 我们自己的 JS，顺序很重要：被别人用的文件要先加载 -->
-  <script src="distance.js"></script>
-  <script src="geocode.js"></script>
-  <script src="route-api.js"></script>
-  <script src="schedule.js"></script>
-  <script src="schedule-import.js"></script>
-  <script src="course-guess.js"></script>
-  <script src="my-classes.js"></script>
-  <script src="map.js"></script>
-  <script src="app.js"></script>
+  <!-- ?v=版本号：每次更新网站时改这个号码，浏览器就会下载新文件，而不是继续用缓存里的旧文件 -->
+  <script>const APP_VERSION = '2026-09-30c';</script>
+  <script src="distance.js?v=2026-09-30c"></script>
+  <script src="geocode.js?v=2026-09-30c"></script>
+  <script src="route-api.js?v=2026-09-30c"></script>
+  <script src="schedule.js?v=2026-09-30c"></script>
+  <script src="schedule-import.js?v=2026-09-30c"></script>
+  <script src="course-guess.js?v=2026-09-30c"></script>
+  <script src="my-classes.js?v=2026-09-30c"></script>
+  <script src="map.js?v=2026-09-30c"></script>
+  <script src="app.js?v=2026-09-30c"></script>
 
 </body>
 </html>

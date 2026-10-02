@@ -30,6 +30,9 @@ async function loadShapes() {
 // 输入：一个 dorm 对象
 // 输出：网页上 #dorm-info 的内容被替换
 function showDormInfo(dorm) {
+  // 宿舍详情在 Find a dorm 标签页里（比如在 My week 里点了地图上的宿舍，要切过去才看得到）
+  showTab('dorm');
+
   // 1. 在网页里找到要修改的那个元素
   const infoBox = document.getElementById('dorm-info');
 
@@ -591,6 +594,9 @@ function findPlace(index, query, allowPartial = true) {
 
 // 程序入口：页面加载后从这里开始执行
 async function main() {
+  // 三个标签页（tabs.js）：先显示 My week
+  initTabs();
+
   const data = await loadData();
   setBuildingShapes(await loadShapes());
   setWalkTable(await loadWalkTimes());

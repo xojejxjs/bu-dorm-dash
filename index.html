@@ -9,7 +9,7 @@
   <!-- Leaflet 的样式文件，必须引入，否则地图显示会错乱 -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <link rel="stylesheet" href="style.css?v=2026-10-02f" />
+  <link rel="stylesheet" href="style.css?v=2026-10-02h" />
 </head>
 <body>
 
@@ -25,94 +25,112 @@
     <!-- 左侧：用户操作 + 结果 -->
     <aside id="sidebar">
 
-      <!-- 区域 0：宿舍详情（Step 5：点击地图上的宿舍后，JS 往里面写内容） -->
-      <section id="dorm-panel">
-        <h2>Dorm info</h2>
+      <!-- 三个标签页，对应网站的三个功能。一次只看一个，左边就不会一长串什么都有 -->
+      <nav class="tabs" role="tablist" aria-label="Sections">
+        <button type="button" role="tab" id="tab-btn-week" data-tab="week" aria-controls="tab-week" aria-selected="true">My week</button>
+        <button type="button" role="tab" id="tab-btn-dorm" data-tab="dorm" aria-controls="tab-dorm" aria-selected="false">Find a dorm</button>
+        <button type="button" role="tab" id="tab-btn-route" data-tab="route" aria-controls="tab-route" aria-selected="false">Route check</button>
+      </nav>
 
-        <!-- 搜索框：list 属性把它和下面的 datalist 连起来，打字时会出现候选项 -->
-        <input type="search" id="dorm-search" list="dorm-search-options"
-               placeholder="Search a dorm, e.g. Warren, StuVi, 188 Bay State Road">
-        <datalist id="dorm-search-options"></datalist>
-        <p id="dorm-search-message" class="search-message"></p>
+      <!-- 标签页 1：My week —— 先给结论（课间步行），再是我的课，最后是添加课表 -->
+      <div id="tab-week" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-week">
+        <section id="schedule-panel">
+          <!-- 课间步行分析：每天连着上的两节课，走过去来不来得及（my-week.js） -->
+          <div id="class-walks"></div>
 
-        <div id="dorm-info">
-          <p class="placeholder">Click a red dot on the map to see dorm details.</p>
-        </div>
-      </section>
+          <!-- 我的课：一门课一行，点开看详情（my-classes.js） -->
+          <div id="schedule-list"></div>
 
-      <!-- 区域 0.5：我的课（上传课表截图，识别出上课的楼并标在地图上） -->
-      <section id="schedule-panel">
-        <h2>My classes</h2>
-        <p class="hint">Add your class schedule: screenshots, a calendar file (.ics), PDF, Word (.docx) or text. You can pick several at once. Files are read in your browser and never uploaded.</p>
-        <p class="hint"><strong>Most accurate:</strong> on your BU schedule page, click <em>Download (.ics)</em> and add that file.</p>
+          <!-- 添加课表：还没有课时展开；有课以后收起来，变成 "+ Add more classes" -->
+          <details id="add-schedule" open>
+            <summary id="add-schedule-title">Add your class schedule</summary>
+            <p class="hint">Screenshots, a calendar file (.ics), PDF, Word (.docx) or text. You can pick several at once. Files are read in your browser and never uploaded.</p>
+            <p class="hint"><strong>Most accurate:</strong> on your BU schedule page, click <em>Download (.ics)</em> and add that file.</p>
 
-        <!-- accept：可以选图片、.ics、PDF、Word、文字；multiple：可以一次选多个 -->
-        <input type="file" id="schedule-file" multiple
-               accept="image/*,.ics,text/calendar,.pdf,application/pdf,.docx,.txt,text/plain">
+            <!-- accept：可以选图片、.ics、PDF、Word、文字；multiple：可以一次选多个 -->
+            <input type="file" id="schedule-file" multiple
+                   accept="image/*,.ics,text/calendar,.pdf,application/pdf,.docx,.txt,text/plain">
 
-        <!-- 手边没有课表的人（比如活动现场）：用一份虚构的示例课表，10 秒体验所有功能 -->
-        <p class="sample-row" id="sample-row">
-          No schedule handy?
-          <button type="button" class="small-button" id="sample-button">Try a sample schedule</button>
-        </p>
+            <!-- 手边没有课表的人（比如活动现场）：用一份示例课表，10 秒体验所有功能 -->
+            <p class="sample-row" id="sample-row">
+              No schedule handy?
+              <button type="button" class="small-button" id="sample-button">Try a sample schedule</button>
+            </p>
 
-        <!-- 隐藏的上传框：给"针对某一门课再传一个文件"用，由按钮触发 -->
-        <input type="file" id="class-scan-file" hidden
-               accept="image/*,.ics,text/calendar,.pdf,application/pdf,.docx,.txt,text/plain">
+            <!-- 识别不准时的备用方式：直接粘贴课表文字 -->
+            <details id="schedule-paste">
+              <summary>Or paste your schedule as text</summary>
+              <textarea id="schedule-text" rows="5"
+                        placeholder="e.g.&#10;Intro to DS with Python&#10;CDSDS 110 (LEC)&#10;1:25 - 2:15 pm&#10;685-725 Comm Ave CAS 211"></textarea>
+              <button type="button" id="schedule-text-button">Read text</button>
+            </details>
+          </details>
 
-        <!-- 识别不准时的备用方式：直接粘贴课表文字 -->
-        <details id="schedule-paste">
-          <summary>Or paste your schedule as text</summary>
-          <textarea id="schedule-text" rows="5"
-                    placeholder="e.g.&#10;Intro to DS with Python&#10;CDSDS 110 (LEC)&#10;1:25 - 2:15 pm&#10;685-725 Comm Ave CAS 211"></textarea>
-          <button type="button" id="schedule-text-button">Read text</button>
-        </details>
+          <!-- 读文件的进度、读完的结果 -->
+          <p id="schedule-status" class="hint"></p>
 
-        <p id="schedule-status" class="hint"></p>
-        <div id="schedule-list"></div>
+          <!-- 隐藏的上传框：给"针对某一门课再传一个文件"用，由按钮触发 -->
+          <input type="file" id="class-scan-file" hidden
+                 accept="image/*,.ics,text/calendar,.pdf,application/pdf,.docx,.txt,text/plain">
 
-        <!-- 课间步行分析：每天连着上的两节课，走过去来不来得及（my-week.js） -->
-        <div id="class-walks"></div>
+          <!-- 确认 / 跳过之后短暂出现的提示，可以 Undo -->
+          <div id="class-toast" class="toast" hidden></div>
+        </section>
+      </div>
 
-        <!-- 确认 / 跳过之后短暂出现的提示，可以 Undo -->
-        <div id="class-toast" class="toast" hidden></div>
-      </section>
+      <!-- 标签页 2：Find a dorm —— 宿舍详情 + 按步行时间给宿舍排名 -->
+      <div id="tab-dorm" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-dorm" hidden>
+        <section id="dorm-panel">
+          <h2>Dorm info</h2>
 
-      <!-- 区域 1：路线选择（选项由 JS 根据 data.json 生成） -->
-      <section id="route-panel">
-        <h2>Route check</h2>
+          <!-- 搜索框：list 属性把它和下面的 datalist 连起来，打字时会出现候选项 -->
+          <input type="search" id="dorm-search" list="dorm-search-options"
+                 placeholder="Search a dorm, e.g. Warren, StuVi, 188 Bay State Road">
+          <datalist id="dorm-search-options"></datalist>
+          <p id="dorm-search-message" class="search-message"></p>
 
-        <!-- 两个输入框共用一个候选列表 place-options：可以点开选，也可以直接打字 -->
-        <label for="from-input">From</label>
-        <input type="search" id="from-input" list="place-options"
-               placeholder="Type or pick a place, e.g. StuVi, CAS">
+          <div id="dorm-info">
+            <p class="placeholder">Search above, or click a dark dot on the map to see dorm details.</p>
+          </div>
+        </section>
 
-        <label for="to-input">To</label>
-        <input type="search" id="to-input" list="place-options"
-               placeholder="Type or pick a place, e.g. GSU, 188 Bay State Road">
+        <section id="results-panel">
+          <h2>Dorm comparison</h2>
 
-        <datalist id="place-options"></datalist>
+          <label for="rank-select">Rank dorms by walking time to</label>
+          <select id="rank-select"></select>
 
-        <label for="gap-input" id="gap-label">Minutes you have to get there</label>
-        <input type="number" id="gap-input" value="15" min="1">
+          <div id="results">
+            <p class="placeholder">Choose a building to rank the dorms.</p>
+          </div>
+        </section>
+      </div>
 
-        <!-- Step 8：计算结果显示在这里 -->
-        <div id="route-result">
-          <p class="placeholder">Choose a starting point and a destination to see the walking time.</p>
-        </div>
-      </section>
+      <!-- 标签页 3：Route check —— 任意两个地点之间走多久、来不来得及 -->
+      <div id="tab-route" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-route" hidden>
+        <section id="route-panel">
+          <h2>Route check</h2>
 
-      <!-- 区域 2：宿舍比较结果（Step 10 会用 JS 往里面放卡片） -->
-      <section id="results-panel">
-        <h2>Dorm comparison</h2>
+          <!-- 两个输入框共用一个候选列表 place-options：可以点开选，也可以直接打字 -->
+          <label for="from-input">From</label>
+          <input type="search" id="from-input" list="place-options"
+                 placeholder="Type or pick a place, e.g. StuVi, CAS">
 
-        <label for="rank-select">Rank dorms by walking time to</label>
-        <select id="rank-select"></select>
+          <label for="to-input">To</label>
+          <input type="search" id="to-input" list="place-options"
+                 placeholder="Type or pick a place, e.g. GSU, 188 Bay State Road">
 
-        <div id="results">
-          <p class="placeholder">Choose a building to rank the dorms.</p>
-        </div>
-      </section>
+          <datalist id="place-options"></datalist>
+
+          <label for="gap-input" id="gap-label">Minutes you have to get there</label>
+          <input type="number" id="gap-input" value="15" min="1">
+
+          <!-- 计算结果显示在这里 -->
+          <div id="route-result">
+            <p class="placeholder">Choose a starting point and a destination to see the walking time.</p>
+          </div>
+        </section>
+      </div>
 
       <!-- 数据来源说明：让用户知道信息从哪里来、步行时间只是估算 -->
       <footer id="sources">
@@ -141,18 +159,19 @@
 
   <!-- 我们自己的 JS，顺序很重要：被别人用的文件要先加载 -->
   <!-- ?v=版本号：每次更新网站时改这个号码，浏览器就会下载新文件，而不是继续用缓存里的旧文件 -->
-  <script>const APP_VERSION = '2026-10-02f';</script>
-  <script src="distance.js?v=2026-10-02f"></script>
-  <script src="geocode.js?v=2026-10-02f"></script>
-  <script src="route-api.js?v=2026-10-02f"></script>
-  <script src="schedule.js?v=2026-10-02f"></script>
-  <script src="schedule-import.js?v=2026-10-02f"></script>
-  <script src="course-guess.js?v=2026-10-02f"></script>
-  <script src="my-classes.js?v=2026-10-02f"></script>
-  <script src="my-week.js?v=2026-10-02f"></script>
-  <script src="map.js?v=2026-10-02f"></script>
-  <script src="app.js?v=2026-10-02f"></script>
-  <script src="analytics.js?v=2026-10-02f"></script>
+  <script>const APP_VERSION = '2026-10-02h';</script>
+  <script src="distance.js?v=2026-10-02h"></script>
+  <script src="geocode.js?v=2026-10-02h"></script>
+  <script src="route-api.js?v=2026-10-02h"></script>
+  <script src="schedule.js?v=2026-10-02h"></script>
+  <script src="schedule-import.js?v=2026-10-02h"></script>
+  <script src="course-guess.js?v=2026-10-02h"></script>
+  <script src="my-classes.js?v=2026-10-02h"></script>
+  <script src="my-week.js?v=2026-10-02h"></script>
+  <script src="map.js?v=2026-10-02h"></script>
+  <script src="tabs.js?v=2026-10-02h"></script>
+  <script src="app.js?v=2026-10-02h"></script>
+  <script src="analytics.js?v=2026-10-02h"></script>
 
   <!-- 访问统计（GoatCounter）：不用 cookie；只在线上网站统计，本地测试不算 -->
   <script data-goatcounter="https://xojejxjs.goatcounter.com/count"

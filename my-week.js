@@ -118,8 +118,9 @@ function renderClassWalks() {
   let html = '<h3>Your walks between classes</h3>';
 
   if (result.walks.length > 0) {
-    html += `<p class="hint">Each day, from one class to the next.
-      🟢 at least ${BUFFER_MINUTES} min to spare · 🟡 tight · 🔴 you'd be late</p>`;
+    // 先给结论：一行总结，一眼看出有没有问题
+    html += renderWalkSummary(urgent);
+    html += `<p class="hint">Each day, from one class to the next. 🟢 means at least ${BUFFER_MINUTES} min to spare.</p>`;
   } else if (result.checked.length > 0) {
     html += '<p class="hint">No back-to-back classes on the same day, so there are no walks to check.</p>';
   } else {
@@ -208,9 +209,34 @@ function handleWalkClick(event) {
   if (!walk) {
     return;
   }
+  // 在地图上画出这段路（Route check 也会填好，切过去就能看到详细结果）
+  // 留在 My week 里不跳走：这一行本身已经写了结论；地图在旁边（手机上在上面）
   fillRouteCheck(walk.from, walk.to, walk.gap);
-  // 手机上 Route check 在很下面，要滚过去才看得到结果；电脑上侧边栏也会滚到结果
-  document.getElementById('route-result').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  document.querySelectorAll('#class-walks .walk-row.selected').forEach(function (el) {
+    el.classList.remove('selected');
+  });
+  row.classList.add('selected');
+}
+
+// 一行总结：🔴 1 can't make · 🟡 1 tight · 🟢 2 fine（还有时间冲突的话也写上）
+// 每一项数的是"一行"，也就是同一对课（一周里重复的算一行）
+function renderWalkSummary(walks) {
+  function count(test) {
+    return walks.filter(test).length;
+  }
+  const clash = count(function (w) { return w.kind === 'clash'; });
+  const red = count(function (w) { return w.kind === 'walk' && w.route.verdict === 'red'; });
+  const yellow = count(function (w) { return w.kind === 'walk' && w.route.verdict === 'yellow'; });
+  const green = count(function (w) { return w.kind === 'same' || (w.kind === 'walk' && w.route.verdict === 'green'); });
+
+  const parts = [];
+  if (clash > 0) {
+    parts.push(`<span class="summary-item summary-clash">⚠️ ${clash} time ${clash === 1 ? 'clash' : 'clashes'}</span>`);
+  }
+  parts.push(`<span class="summary-item summary-red">🔴 ${red} can't make</span>`);
+  parts.push(`<span class="summary-item summary-yellow">🟡 ${yellow} tight</span>`);
+  parts.push(`<span class="summary-item summary-green">🟢 ${green} fine</span>`);
+  return `<p class="walk-summary">${parts.join('')}</p>`;
 }
 
 // 只需要绑定一次：#class-walks 里面的内容每次都会重画，但它本身不变（事件委托）

@@ -10,6 +10,8 @@ const map = L.map('map', {
 
 // 添加地图的"底图"图层——没有这一步，地图容器是空白的
 // 这里用的是 OpenStreetMap 提供的免费地图瓦片，不需要 API key
+// 底图在 style.css 里调成了浅灰色（.leaflet-tile-pane 的 filter）：底图只做背景，
+// 我们自己的点、标签和路线才看得清（CARTO 的浅色底图现在要 API key，所以不用它）
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '&copy; OpenStreetMap contributors' // 使用免费地图要求保留这行版权说明
@@ -58,7 +60,7 @@ function refreshMarkers() {
 
 // 把所有宿舍画到地图上
 // 输入：dorms 数组（来自 data.json）
-// 输出：每个宿舍一个红色圆点（登记到 markerEntries，由 refreshMarkers 决定是否显示）
+// 输出：每个宿舍一个深灰蓝色圆点（登记到 markerEntries，由 refreshMarkers 决定是否显示）
 function addDormMarkers(dorms) {
   dorms.forEach(function (dorm) {
     // forEach 会对数组里的每一项执行一次这个函数，dorm 就是"当前这一个宿舍"
@@ -66,8 +68,9 @@ function addDormMarkers(dorms) {
       radius: 9,
       color: 'white',       // 边框颜色
       weight: 2,            // 边框粗细
-      fillColor: '#cc0000', // 宿舍：红色
-      fillOpacity: 0.9
+      fillColor: DORM_COLOR, // 宿舍：深灰蓝（红色只留给"来不及"）
+      fillOpacity: 0.9,
+      className: 'dorm-marker' // 在 My week 标签页里变淡（style.css）
     })
       .bindTooltip(dorm.name) // 鼠标悬停时显示名字
       .on('click', function () {
@@ -82,14 +85,15 @@ function addDormMarkers(dorms) {
 }
 
 // 每种地点类型对应的颜色（key 就是 data.json 里的 type）
-// 紫色而不是绿色：绿色已经用在路线的 🟢 结论上，避免混淆
+// 规则：一种颜色只有一个意思。绿 / 黄 / 红只用来表示"来不来得及"（🟢🟡🔴），所以地点都不用这三种颜色
 const TYPE_COLORS = {
-  academic: '#1f6feb',   // 教学楼：蓝色
-  recreation: '#8e44ad', // 健身 / 娱乐：紫色
-  dining: '#f28c28',     // 食堂：橙色
-  student_life: '#12a39a' // 学生服务（GSU、ISSO 等）：青绿色
+  academic: '#2563eb',    // 教学楼：蓝色
+  recreation: '#7c3aed',  // 健身 / 娱乐：紫色
+  dining: '#0891b2',      // 食堂：青色（原来的橙色和 🟡 太像）
+  student_life: '#c026d3' // 学生服务（GSU、ISSO 等）：品红（原来的青绿色和 🟢 太像）
 };
 const DEFAULT_TYPE_COLOR = '#666666'; // data.json 里出现没定义过的 type 时用灰色
+const DORM_COLOR = '#334155';         // 宿舍：深灰蓝
 
 // 把所有教学楼画到地图上（逻辑和宿舍一样，颜色按 type 决定）
 function addBuildingMarkers(buildings) {
@@ -175,16 +179,16 @@ function setBuildingShapes(shapes) {
 let highlightLayer = null;
 
 const HIGHLIGHT_STYLE = {
-  color: '#cc0000',     // 边框：BU 红
+  color: '#1a1f71',     // 边框：深蓝（和"我的课"标签同一个颜色，表示"你选中的"）
   weight: 3,
-  fillColor: '#cc0000',
+  fillColor: '#1a1f71',
   fillOpacity: 0.15,
   interactive: false    // 框只用来看，不接收点击，这样不会挡住下面的圆点
 };
 
 // 把某个地点所在的建筑框起来
 // 输入：一个地点对象
-// 输出：地图上出现一个按建筑形状画的红框；没有轮廓数据时画一个圆圈代替
+// 输出：地图上出现一个按建筑形状画的深蓝框；没有轮廓数据时画一个圆圈代替
 function highlightPlace(place) {
   if (highlightLayer !== null) {
     map.removeLayer(highlightLayer);
@@ -347,7 +351,7 @@ function clearClassPreview() {
 
 // 图例里的每一类：type 对应 data.json 里的 type（宿舍用 'dorm'）
 const LEGEND_ITEMS = [
-  { type: 'dorm', label: 'Dorm', color: '#cc0000' },
+  { type: 'dorm', label: 'Dorm', color: DORM_COLOR },
   { type: 'academic', label: 'Academic', color: TYPE_COLORS.academic },
   { type: 'recreation', label: 'Recreation', color: TYPE_COLORS.recreation },
   { type: 'dining', label: 'Dining', color: TYPE_COLORS.dining },

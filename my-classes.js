@@ -12,6 +12,7 @@ const myClasses = {
   items: [],        // 所有课
   placeIndex: null, // 地点搜索索引（app.js 建好后传进来）
   openId: null,     // 当前展开（正在确认 / 编辑）的是哪门课
+  expandedId: null, // 列表里点开看详情的是哪门课（一次只开一门）
   undo: null,       // 上一步之前的样子，用来 Undo
   selecting: false, // 是不是在"批量选择"模式（每门课前面有一个圈）
   selected: new Set() // 批量选择模式下，勾选了哪些课（存课的 id）
@@ -104,18 +105,10 @@ function locationLabel(place, room) {
   return escapeHtml(place.name) + (room ? ` · room ${escapeHtml(room)}` : '');
 }
 
-// 每栋楼的颜色：地图上的标签和列表里的卡片用同一种颜色，一眼就能对上
-// 避开了地图上已经用过的颜色（宿舍红、教学楼蓝、娱乐紫、食堂橙、学生服务青绿、路线蓝）
-const BUILDING_COLORS = ['#d81b60', '#2e7d32', '#6d4c41', '#455a64', '#827717', '#283593', '#bf360c', '#37474f'];
-const buildingColors = {}; // 楼的 id → 颜色。记住已经分配的，确认别的课时颜色不会变
-
-function buildingColor(place) {
-  if (!buildingColors[place.id]) {
-    const used = Object.keys(buildingColors).length;
-    buildingColors[place.id] = BUILDING_COLORS[used % BUILDING_COLORS.length];
-  }
-  return buildingColors[place.id];
-}
+// "我的课"统一用一种深蓝色：地图上的标签、列表卡片左边的色条都是它
+// 以前每栋楼一种颜色，但颜色本身没有意思，反而让人以为绿色的楼是"没问题"
+// 和 style.css 里的 --mine 是同一个颜色
+const CLASS_COLOR = '#1a1f71';
 
 // ===== 保存在这个浏览器里（localStorage） =====
 //
@@ -358,12 +351,6 @@ function fillRouteCheck(fromClass, toClass, gapMinutes) {
   to.dispatchEvent(new Event('change'));
 }
 
-// 示例提示条上的按钮：填好路线，并滚到结果（手机上路线检查在很下面）
-function showSampleRoute() {
-  fillSampleRoute();
-  document.getElementById('route-result').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
 // 用户导入自己的课表时，先把示例课拿掉，免得混在一起
 function removeSampleClasses() {
   myClasses.items = myClasses.items.filter(function (c) { return !c.sample; });
@@ -464,8 +451,19 @@ function renderMyClasses() {
   // 已经有课了，就不需要"试试示例"按钮
   document.getElementById('sample-row').hidden = items.length > 0;
 
-  // 排序：同一门课的不同时段（lecture、discussion…）放在一起
-  const confirmed = items.filter(function (c) { return c.status === 'confirmed'; }).sort(compareMeetings);
+  // "添加课表"：还没有课时展开，是这一页的主角；第一次有课以后自动收起，变成 "+ Add more classes"
+  const addBox = document.getElementById('add-schedule');
+  if (items.length === 0) {
+    addBox.open = true;
+  } else if (!myClasses.hadItems) {
+    addBox.open = false;
+  }
+  myClasses.hadItems = items.length > 0;
+  document.getElementById('add-schedule-title').textContent =
+    items.length === 0 ? 'Add your class schedule' : '+ Add more classes';
+
+  // 已经确定的课：按一周的顺序排（先星期，再上课时间），读起来就像一张课表
+  const confirmed = items.filter(function (c) { return c.status === 'confirmed'; }).sort(compareByWeek);
   const review = items.filter(function (c) { return c.status === 'guess' || c.status === 'none'; }).sort(compareMeetings);
   const skipped = items.filter(function (c) { return c.status === 'skipped'; });
 
@@ -481,22 +479,23 @@ function renderMyClasses() {
   confirmed.forEach(function (c) {
     let group = groups.find(function (g) { return g.place.id === c.place.id; });
     if (!group) {
-      group = { place: c.place, classes: [], color: buildingColor(c.place) };
+      group = { place: c.place, classes: [], color: CLASS_COLOR };
       groups.push(group);
     }
     group.classes.push(c);
   });
   showClassMarkers(groups);
-  status.textContent = `${confirmed.length} classes on your map in ${groups.length} buildings. ` +
-    'Each label on the map shows a building and how many of your classes meet there.';
+  // 课的数量已经写在 "My classes (n)" 标题上，这里不再重复；#schedule-status 只用来显示读文件的进度和结果
 
-  let html = renderSelectToolbar(review.length + confirmed.length);
+  // 标题 + "Select" 按钮放在同一行
+  const count = review.length + confirmed.length;
+  let html = `<div class="list-head"><h3>My classes <span class="count">(${count})</span></h3>` +
+    renderSelectToolbar(count) + '</div>';
 
-  // 正在看示例：说清楚这些课是虚构的，以及怎么换成自己的
+  // 正在看示例：说清楚这是示例，以及怎么换成自己的
   if (items.some(function (c) { return c.sample; })) {
-    html += `<div class="sample-banner">👀 This is a <strong>made-up sample schedule</strong>.
-      Add your own schedule above and it replaces the sample.
-      <button type="button" class="small-button" data-action="sample-route">Can I walk from Macroeconomics (PRB) to Experience Management (SHA) in 15 min?</button></div>`;
+    html += `<div class="sample-banner">👀 This is a <strong>sample schedule</strong> (real BU classes, mixed from a few students).
+      Add your own schedule below and it replaces the sample.</div>`;
   }
 
   // 1. 需要确认的放最上面，并有一个醒目的提示
@@ -566,17 +565,7 @@ function renderCard(c) {
   }
 
   if (c.status === 'confirmed') {
-    const badge = c.source === 'schedule'
-      ? '<span class="badge badge-schedule">From your schedule</span>'
-      : '<span class="badge badge-user">Confirmed by you</span>';
-    return `
-      <li class="class-card confirmed" data-id="${c.id}" style="border-left-color:${buildingColor(c.place)}">
-        ${badge}
-        <strong>${escapeHtml(c.title)}</strong>
-        ${classMetaLine(c)}<br>
-        <span class="rank-detail"><span class="color-dot" style="background:${buildingColor(c.place)}"></span>${locationLabel(c.place, c.room)}</span>
-        <button type="button" class="link-button edit-button" data-action="open">Edit</button>
-      </li>`;
+    return renderClassRow(c);
   }
 
   // 需要确认的：收起时只说"可能在哪"，必须点 Review 才能看到详细信息并确认
@@ -592,6 +581,50 @@ function renderCard(c) {
       <p class="card-note">${hint}</p>
       <button type="button" class="primary-button" data-action="open">Review</button>
     </li>`;
+}
+
+// 已经确定的课：收起时只有一行（课名、楼、什么时候），点一下展开看详情
+// 只留下和地图、课间步行对得上的信息：楼的代码和地图上的标签一样，时间用来看懂课间步行
+function renderClassRow(c) {
+  const expanded = myClasses.expandedId === c.id;
+  const head = `
+    <button type="button" class="class-row-head" data-action="toggle" aria-expanded="${expanded}">
+      <span class="color-dot"></span>
+      <span class="class-row-title">${escapeHtml(c.title)}</span>
+      <span class="class-row-where">${escapeHtml(c.place.code || c.place.name)}</span>
+      <span class="class-row-when">${escapeHtml(shortWhen(c))}</span>
+    </button>`;
+  if (!expanded) {
+    return `<li class="class-row" data-id="${c.id}">${head}</li>`;
+  }
+  // 展开：完整的课号、时间、楼名、教室；只有用户自己设的地点才特别标出来
+  const badge = c.source === 'schedule' ? '' : '<span class="badge badge-user">Location set by you</span>';
+  return `
+    <li class="class-row expanded" data-id="${c.id}">
+      ${head}
+      <div class="class-row-detail">
+        ${badge}
+        ${classMetaLine(c)}<br>
+        <span class="rank-detail">${locationLabel(c.place, c.room)}</span>
+        <button type="button" class="link-button edit-button" data-action="open">Edit</button>
+      </div>
+    </li>`;
+}
+
+// 一行里的"什么时候"：MWF 9:05 AM、TuTh 11:00 AM
+const DAY_SHORT = { Mon: 'M', Tue: 'Tu', Wed: 'W', Thu: 'Th', Fri: 'F', Sat: 'Sa', Sun: 'Su' };
+
+function shortWhen(c) {
+  const days = c.days.map(function (d) { return DAY_SHORT[d] || d; }).join('');
+  const time = c.start != null ? formatClock(c.start) : '';
+  return [days, time].filter(Boolean).join(' ');
+}
+
+// 按一周的顺序排：先比第一天是星期几，再比几点上课
+function compareByWeek(a, b) {
+  const dayA = a.days.length > 0 ? DAY_ORDER.indexOf(a.days[0]) : 99;
+  const dayB = b.days.length > 0 ? DAY_ORDER.indexOf(b.days[0]) : 99;
+  return dayA - dayB || (a.start == null ? 9999 : a.start) - (b.start == null ? 9999 : b.start);
 }
 
 // ===== 批量选择 =====
@@ -885,11 +918,6 @@ function handleListClick(event) {
     return;
   }
 
-  if (action === 'sample-route') {
-    showSampleRoute();
-    return;
-  }
-
   // 提示条上的"再传一张截图"：不属于某一门课，打开普通的上传框
   if (action === 'scan-all') {
     document.getElementById('schedule-file').click();
@@ -903,6 +931,16 @@ function handleListClick(event) {
   if (action === 'scan-one') {
     myClasses.scanTargetId = item.id;
     document.getElementById('class-scan-file').click();
+    return;
+  }
+
+  // 点一门课的那一行：展开 / 收起详情，并在地图上把这栋楼框出来
+  if (action === 'toggle') {
+    myClasses.expandedId = myClasses.expandedId === item.id ? null : item.id;
+    if (myClasses.expandedId !== null) {
+      highlightPlace(item.place);
+    }
+    renderMyClasses();
     return;
   }
 

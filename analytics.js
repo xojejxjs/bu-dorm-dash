@@ -26,7 +26,7 @@ function initFeedbackLink() {
 // 用"事件委托"在整个页面上监听：不用改其他文件，统计的代码都集中在这里
 function initEventTracking() {
   document.addEventListener('click', function (event) {
-    const target = event.target.closest('#sample-button, #feedback-link, [data-action="sample-route"]');
+    const target = event.target.closest('#sample-button, #feedback-link, [data-walk], .tabs [data-tab]');
     if (!target) {
       return;
     }
@@ -34,8 +34,10 @@ function initEventTracking() {
       trackEvent('try-sample');
     } else if (target.id === 'feedback-link') {
       trackEvent('feedback-click');
+    } else if (target.dataset.tab) {
+      trackEvent('tab-' + target.dataset.tab); // 只记点了哪个标签页
     } else {
-      trackEvent('sample-route');
+      trackEvent('walk-route'); // 点了"课间步行"的某一行；只记这件事，不记是哪两门课
     }
   });
 

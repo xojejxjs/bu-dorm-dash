@@ -1,9 +1,31 @@
+/* ===== 颜色系统：一种颜色只有一个意思 =====
+   绿 / 琥珀 / 红：只表示"来不来得及"（红色也用于出错、删除这类"有问题"的地方）
+   深蓝：我的课；蓝：可以点的按钮、需要你做的事；灰：背景信息
+   BU 红只用在网站名字上 */
+:root {
+  --ink: #1f2937;        /* 正文 */
+  --muted: #6b7280;      /* 次要文字 */
+  --line: #e5e7eb;       /* 分隔线、卡片边框 */
+  --brand: #cc0000;      /* BU 红：只用在 logo */
+  --mine: #1a1f71;       /* 我的课 */
+  --action: #1558c0;     /* 按钮、需要你确认的东西 */
+  --action-bg: #eef3fc;
+  --ok: #1e8e3e;         /* 🟢 来得及 */
+  --ok-bg: #e6f4ea;
+  --tight: #e8a200;      /* 🟡 很紧 */
+  --tight-bg: #fff4d6;
+  --late: #c62828;       /* 🔴 来不及 / 出错 / 删除 */
+  --late-bg: #fde8e8;
+}
+
 /* 让 html 和 body 占满整个浏览器窗口高度，
    否则 #map 的高度百分比会没有参照物，地图可能显示不出来 */
 html, body {
   height: 100%;
   margin: 0;
   font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  background: white; /* 写明白底色：浏览器开了深色模式时，页面也不会变成黑底黑字 */
 }
 
 /* 整个页面：上面是标题，下面是 main，main 占满剩余高度 */
@@ -12,10 +34,12 @@ body {
   flex-direction: column;
 }
 
+/* 标题栏：白底，只有网站名字用 BU 红。大片红色会和 🔴"来不及"抢注意力 */
 header {
   padding: 12px 16px;
-  background: #cc0000; /* BU 红 */
-  color: white;
+  background: white;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
 }
 
 header {
@@ -25,6 +49,7 @@ header {
 header h1 {
   margin: 0;
   font-size: 20px;
+  color: var(--brand);
 }
 
 /* 右上角的 Feedback 按钮 */
@@ -33,15 +58,15 @@ header h1 {
   top: 12px;
   right: 16px;
   padding: 4px 10px;
-  border: 1px solid white;
+  border: 1px solid var(--line);
   border-radius: 14px;
-  color: white;
+  color: var(--ink);
   font-size: 13px;
   text-decoration: none;
 }
 
 .feedback-link:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: #f3f4f6;
 }
 
 /* 有 Feedback 按钮时，副标题不要伸到按钮下面 */
@@ -58,7 +83,7 @@ header:has(.feedback-link:not([hidden])) .tagline {
 header .tagline {
   margin: 2px 0 0;
   font-size: 13px;
-  opacity: 0.9;
+  color: var(--muted);
 }
 
 /* main：左边 sidebar，右边地图，左右并排 */
@@ -87,7 +112,6 @@ main {
 
 #dorm-info h3 {
   margin: 0 0 8px;
-  color: #cc0000;
 }
 
 #dorm-info p {
@@ -130,9 +154,9 @@ main {
 }
 
 /* 三种结论的背景色 */
-#route-result.verdict-green  { background: #e6f4ea; }
-#route-result.verdict-yellow { background: #fff4d6; }
-#route-result.verdict-red    { background: #fde8e8; }
+#route-result.verdict-green  { background: var(--ok-bg); }
+#route-result.verdict-yellow { background: var(--tight-bg); }
+#route-result.verdict-red    { background: var(--late-bg); }
 
 /* 宿舍排名列表 */
 #results {
@@ -160,7 +184,7 @@ main {
 }
 
 .rank-item:hover {
-  border-color: #cc0000;
+  border-color: var(--action);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
@@ -235,15 +259,16 @@ main {
   padding: 8px 10px;
   margin-bottom: 8px;
   border: 1px solid #e2e2e2;
-  border-left: 4px solid #222;
+  border-left: 4px solid var(--mine);
   border-radius: 8px;
   list-style: none;
 }
 
+/* 需要你确认的课：蓝色 = "需要你做一件事"（琥珀色已经表示 🟡 很紧） */
 .class-card.review,
 .class-card.editing[data-mode="review"] {
-  border-left-color: #e8a200;
-  background: #fffaf0;
+  border-left-color: var(--action);
+  background: var(--action-bg);
 }
 
 .class-card.skipped {
@@ -273,14 +298,14 @@ main {
 
 .badge-schedule { background: #e8eefc; color: #1a3d8f; }
 .badge-user     { background: #e6f4ea; color: #1e6b34; }
-.badge-review   { background: #ffecc2; color: #7a4f00; }
+.badge-review   { background: #dbe6fb; color: #0f3f8c; }
 
 /* 顶部的提示：有几门课需要确认 */
 .review-banner {
   font-size: 13px;
   font-weight: bold;
-  color: #7a4f00;
-  background: #ffecc2;
+  color: #0f3f8c;
+  background: var(--action-bg);
   border-radius: 6px;
   padding: 8px 10px;
   margin: 8px 0;
@@ -293,9 +318,9 @@ main {
   padding: 5px 10px;
   font-size: 13px;
   font-weight: bold;
-  color: #7a4f00;
+  color: var(--action);
   background: white;
-  border: 1px solid #e8a200;
+  border: 1px solid var(--action);
   border-radius: 6px;
   cursor: pointer;
 }
@@ -560,8 +585,9 @@ main {
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
-/* 列表卡片里楼名前的小圆点，颜色和地图上的标签一致 */
+/* 列表卡片里楼名前的小圆点，颜色和地图上"我的课"的标签一致 */
 .color-dot {
+  background: var(--mine);
   display: inline-block;
   width: 9px;
   height: 9px;
@@ -617,6 +643,12 @@ main {
 #map {
   flex: 1;
   height: 100%;
+}
+
+/* 底图变成浅灰色：去掉颜色、调亮一点。只改底图瓦片，我们画上去的点、标签、路线不受影响
+   这样粉色高速、彩色图标不会和 🟢🟡🔴、"我的课"抢注意力 */
+.leaflet-tile-pane {
+  filter: grayscale(1) brightness(1.12) contrast(0.75);
 }
 
 /* 地图右下角的图例 */
@@ -750,13 +782,13 @@ main {
   padding: 8px 10px;
   margin-bottom: 8px;
   border: 1px solid #e2e2e2;
-  border-left: 4px solid #1e8e3e;
+  border-left: 4px solid var(--ok);
   border-radius: 8px;
-  background: #e6f4ea;
+  background: var(--ok-bg);
 }
 
-.walk-row.walk-yellow { border-left-color: #e8a200; background: #fff4d6; }
-.walk-row.walk-red    { border-left-color: #c62828; background: #fde8e8; }
+.walk-row.walk-yellow { border-left-color: var(--tight); background: var(--tight-bg); }
+.walk-row.walk-red    { border-left-color: var(--late); background: var(--late-bg); }
 .walk-row.walk-clash  { border-left-color: #6a1b9a; background: #f3e8fa; }
 .walk-row.walk-long   { border-left-color: #bbb;    background: #fafafa; }
 
@@ -811,4 +843,191 @@ button.walk-row:focus-visible {
   align-self: flex-end;
   font-size: 12px;
   color: #1a1f71;
+}
+
+/* ===== 三个标签页（tabs.js） ===== */
+/* 标签栏固定在侧边栏顶部：往下滚动时也一直看得到、点得到 */
+.tabs {
+  position: sticky;
+  top: -16px;            /* 抵消 #sidebar 的 padding，贴住顶部 */
+  z-index: 5;
+  display: flex;
+  margin: -16px -16px 16px;
+  padding: 0 8px;
+  background: white;
+  border-bottom: 1px solid var(--line);
+}
+
+.tabs button {
+  flex: 1;
+  padding: 12px 4px 10px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tabs button:hover {
+  color: var(--ink);
+}
+
+/* 选中的标签：深色字 + 下面一条线 */
+.tabs button[aria-selected="true"] {
+  color: var(--ink);
+  font-weight: bold;
+  border-bottom-color: var(--ink);
+}
+
+/* 在 My week 里，宿舍的点变淡：这一页的主角是"我的课" */
+#map.tab-week .dorm-marker {
+  opacity: 0.3;
+}
+
+/* ===== My week：我的课，一门课一行 ===== */
+.list-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 8px;
+  margin-top: 20px;
+}
+
+.list-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.list-head .count {
+  font-weight: normal;
+  color: var(--muted);
+}
+
+.list-head .select-toolbar {
+  margin: 0;
+}
+
+/* 批量选择时工具条有好几行，换到标题下面占满一整行 */
+.list-head .select-toolbar.selecting {
+  flex-basis: 100%;
+}
+
+.class-row {
+  list-style: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.class-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 2px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.class-row-head:hover {
+  background: #f8fafc;
+}
+
+/* 课名占剩下的空间，太长就省略，不换行 */
+.class-row-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.class-row-where {
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--mine);
+}
+
+.class-row-when {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.class-row-head .color-dot {
+  margin-right: 0;
+  flex: none;
+}
+
+/* 展开后的详情 */
+.class-row-detail {
+  position: relative;
+  padding: 0 2px 10px 17px;
+  font-size: 13px;
+}
+
+.class-row.expanded .class-row-head {
+  padding-bottom: 4px;
+}
+
+/* ===== My week：添加课表（有课以后收起来） ===== */
+#add-schedule {
+  margin-top: 20px;
+}
+
+#add-schedule > summary {
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 15px;
+  padding: 6px 0;
+}
+
+/* 已经有课时，"+ Add more classes" 看起来像一个链接按钮 */
+#add-schedule:not([open]) > summary {
+  color: var(--action);
+  font-size: 14px;
+  list-style: none;
+}
+
+#add-schedule:not([open]) > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* ===== My week：课间步行的一行总结 ===== */
+.walk-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.summary-item {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.summary-red    { background: var(--late-bg); color: var(--late); }
+.summary-yellow { background: var(--tight-bg); color: #8a5a00; }
+.summary-green  { background: var(--ok-bg); color: var(--ok); }
+.summary-clash  { background: #f3e8fa; color: #6a1b9a; }
+
+/* 点过的那一行：加一圈深色边，表示"地图上画的是这一段" */
+button.walk-row.selected {
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+/* 展开的一行里，Edit 放在详情下面（不像卡片那样浮在右上角，否则会盖住文字） */
+.class-row-detail .edit-button {
+  position: static;
+  display: block;
+  margin-top: 6px;
 }

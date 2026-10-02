@@ -49,7 +49,7 @@
       "amenities": ["Central AC", "Common Area Kitchen", "Laundry Facility", "Study Lounge", "Bike Storage"],
       "units": [],
       "addresses": [],
-      "aliases": []
+      "aliases": ["KHC", "Kilachand Honors College", "Shelton Hall"]
     },
     {
       "id": "towers",
@@ -553,6 +553,283 @@
       "type": "academic"
     },
     {
+      "id": "mor",
+      "name": "Morse Auditorium (MOR)",
+      "address": "602 Commonwealth Ave",
+      "code": "MOR",
+      "latitude": 42.3489168,
+      "longitude": -71.1009276,
+      "type": "academic"
+    },
+    {
+      "id": "prb",
+      "name": "Physics & Biology Research Building (PRB)",
+      "address": "3–5 Cummington Mall",
+      "code": "PRB",
+      "aliases": ["BRB", "Physics Research Building", "Biology Research Building"],
+      "latitude": 42.3486312,
+      "longitude": -71.101266,
+      "type": "academic"
+    },
+    {
+      "id": "bsc",
+      "name": "Biological Science Center (BSC)",
+      "address": "2 Cummington Mall",
+      "code": "BSC",
+      "latitude": 42.348232,
+      "longitude": -71.1011593,
+      "type": "academic"
+    },
+    {
+      "id": "slb",
+      "name": "Science & Engineering Library (SLB)",
+      "address": "30–38 Cummington Mall",
+      "code": "SLB",
+      "aliases": ["Science Library"],
+      "latitude": 42.348431,
+      "longitude": -71.102308,
+      "type": "academic"
+    },
+    {
+      "id": "era",
+      "name": "Engineering Research Annex (ERA)",
+      "address": "48 Cummington Mall",
+      "code": "ERA",
+      "latitude": 42.3486544,
+      "longitude": -71.1035085,
+      "type": "academic"
+    },
+    {
+      "id": "soc",
+      "name": "Sociology (SOC)",
+      "address": "96–100 Cummington Mall",
+      "code": "SOC",
+      "latitude": 42.3488883,
+      "longitude": -71.1048443,
+      "type": "academic"
+    },
+    {
+      "id": "fob",
+      "name": "Faculty Office Building (FOB)",
+      "address": "704 Commonwealth Ave",
+      "code": "FOB",
+      "aliases": ["Alden Hall"],
+      "latitude": 42.3494517,
+      "longitude": -71.1052862,
+      "type": "academic"
+    },
+    {
+      "id": "lng",
+      "name": "Romance Studies & Modern Languages (LNG)",
+      "address": "718 Commonwealth Ave",
+      "code": "LNG",
+      "latitude": 42.34951,
+      "longitude": -71.1058149,
+      "type": "academic"
+    },
+    {
+      "id": "ema",
+      "name": "Engineering Manufacturing Annex (EMA)",
+      "address": "730 Commonwealth Ave",
+      "code": "EMA",
+      "latitude": 42.3496354,
+      "longitude": -71.1069681,
+      "type": "academic"
+    },
+    {
+      "id": "emb",
+      "name": "Engineering Manufacturing Building (EMB)",
+      "address": "15 St. Mary's St",
+      "code": "EMB",
+      "latitude": 42.3493735,
+      "longitude": -71.1072936,
+      "type": "academic"
+    },
+    {
+      "id": "wea",
+      "name": "Wheelock Annex (WEA)",
+      "address": "621 Commonwealth Ave",
+      "code": "WEA",
+      "latitude": 42.3497494,
+      "longitude": -71.1013487,
+      "type": "academic"
+    },
+    {
+      "id": "flr",
+      "name": "Fuller Building (FLR)",
+      "address": "808 Commonwealth Ave",
+      "code": "FLR",
+      "latitude": 42.3501316,
+      "longitude": -71.111401,
+      "type": "academic"
+    },
+    {
+      "id": "tha",
+      "name": "Joan & Edgar Booth Theatre (THA)",
+      "address": "820 Commonwealth Ave",
+      "code": "THA",
+      "latitude": 42.3500061,
+      "longitude": -71.1121307,
+      "type": "academic"
+    },
+    {
+      "id": "cln",
+      "name": "Clinical Psychology (CLN)",
+      "address": "900 Commonwealth Ave",
+      "code": "CLN",
+      "latitude": 42.3511052,
+      "longitude": -71.1175259,
+      "type": "academic"
+    },
+    {
+      "id": "pth",
+      "name": "Playwrights' Theatre (PTH)",
+      "address": "949 Commonwealth Ave",
+      "code": "PTH",
+      "latitude": 42.3519489,
+      "longitude": -71.1187032,
+      "type": "academic"
+    },
+    {
+      "id": "met",
+      "name": "Metropolitan College (MET)",
+      "address": "1010 Commonwealth Ave",
+      "code": "MET",
+      "latitude": 42.3513304,
+      "longitude": -71.1210201,
+      "type": "academic"
+    },
+    {
+      "id": "gdp",
+      "name": "Global Development Policy Center (GDP)",
+      "address": "53 Bay State Rd",
+      "code": "GDP",
+      "latitude": 42.3501704,
+      "longitude": -71.095114,
+      "type": "academic"
+    },
+    {
+      "id": "eib",
+      "name": "Editorial Institute (EIB)",
+      "address": "143 Bay State Rd",
+      "code": "EIB",
+      "latitude": 42.3505035,
+      "longitude": -71.0998585,
+      "type": "academic"
+    },
+    {
+      "id": "rel",
+      "name": "Religion (REL)",
+      "address": "145 Bay State Rd",
+      "code": "REL",
+      "latitude": 42.3505112,
+      "longitude": -71.0999523,
+      "type": "academic"
+    },
+    {
+      "id": "jsc",
+      "name": "Elie Wiesel Center for Jewish Studies (JSC)",
+      "address": "147 Bay State Rd",
+      "code": "JSC",
+      "aliases": ["Judaic Studies Center"],
+      "latitude": 42.3505226,
+      "longitude": -71.1000961,
+      "type": "academic"
+    },
+    {
+      "id": "irc",
+      "name": "International Relations Center (IRC)",
+      "address": "152 Bay State Rd",
+      "code": "IRC",
+      "latitude": 42.3501048,
+      "longitude": -71.1005815,
+      "type": "academic"
+    },
+    {
+      "id": "irb",
+      "name": "International Relations Building (IRB)",
+      "address": "154 Bay State Rd",
+      "code": "IRB",
+      "latitude": 42.3501426,
+      "longitude": -71.1006783,
+      "type": "academic"
+    },
+    {
+      "id": "his",
+      "name": "History & American Studies (HIS)",
+      "address": "226 Bay State Rd",
+      "code": "HIS",
+      "latitude": 42.3504428,
+      "longitude": -71.1036918,
+      "type": "academic"
+    },
+    {
+      "id": "pls",
+      "name": "Anthropology, Philosophy & Political Science (PLS)",
+      "address": "232 Bay State Rd",
+      "code": "PLS",
+      "latitude": 42.3505083,
+      "longitude": -71.1039115,
+      "type": "academic"
+    },
+    {
+      "id": "lev",
+      "name": "Alan & Sherry Leventhal Center (LEV)",
+      "address": "233 Bay State Rd",
+      "code": "LEV",
+      "aliases": ["Admissions"],
+      "latitude": 42.350904,
+      "longitude": -71.1039402,
+      "type": "academic"
+    },
+    {
+      "id": "egl",
+      "name": "English Department (EGL)",
+      "address": "236 Bay State Rd",
+      "code": "EGL",
+      "latitude": 42.3505686,
+      "longitude": -71.1041612,
+      "type": "academic"
+    },
+    {
+      "id": "aas",
+      "name": "African American & Black Diaspora Studies (AAS)",
+      "address": "138 Mountfort St",
+      "code": "AAS",
+      "latitude": 42.3484879,
+      "longitude": -71.1079156,
+      "type": "academic"
+    },
+    {
+      "id": "bab",
+      "name": "300 Babcock Street (BAB)",
+      "address": "300 Babcock St",
+      "code": "BAB",
+      "aliases": ["ASC", "Academic Support Center"],
+      "latitude": 42.3542428,
+      "longitude": -71.1212387,
+      "type": "academic"
+    },
+    {
+      "id": "hawes",
+      "name": "Hawes Building (HAW)",
+      "address": "43 Hawes St",
+      "code": "HAW",
+      "aliases": ["Wightman Mansion"],
+      "latitude": 42.3437754,
+      "longitude": -71.1098469,
+      "type": "academic"
+    },
+    {
+      "id": "fcb",
+      "name": "Fenway Classroom Building (FCB)",
+      "address": "25 Pilgrim Rd",
+      "code": "FCB",
+      "latitude": 42.3426997,
+      "longitude": -71.1048913,
+      "type": "academic"
+    },
+    {
       "id": "dining_warren",
       "name": "Warren Towers Dining Hall",
       "address": "700 Commonwealth Ave",
@@ -613,6 +890,112 @@
       "code": "YAW",
       "latitude": 42.3497874,
       "longitude": -71.09772,
+      "type": "student_life"
+    },
+    {
+      "id": "agganis",
+      "name": "Agganis Arena (AGG)",
+      "address": "925 Commonwealth Ave",
+      "code": "AGG",
+      "latitude": 42.3522154,
+      "longitude": -71.1177354,
+      "type": "recreation"
+    },
+    {
+      "id": "case",
+      "name": "Case Athletic Center (CSE)",
+      "address": "285 Babcock St",
+      "code": "CSE",
+      "aliases": ["Case Physical Education Center", "EIL"],
+      "latitude": 42.3539949,
+      "longitude": -71.1203063,
+      "type": "recreation"
+    },
+    {
+      "id": "ttc",
+      "name": "Track & Tennis Center (TTC)",
+      "address": "100 Ashford St",
+      "code": "TTC",
+      "latitude": 42.3545541,
+      "longitude": -71.1235519,
+      "type": "recreation"
+    },
+    {
+      "id": "sac",
+      "name": "Sargent Activities Center (SAC)",
+      "address": "1 University Rd",
+      "code": "SAC",
+      "aliases": ["Student Activities Center"],
+      "latitude": 42.35116,
+      "longitude": -71.1100412,
+      "type": "recreation"
+    },
+    {
+      "id": "boathouse",
+      "name": "DeWolfe Boathouse (CRW)",
+      "address": "619 Memorial Dr, Cambridge",
+      "code": "CRW",
+      "aliases": ["Crew", "Boathouse"],
+      "latitude": 42.3532527,
+      "longitude": -71.1077696,
+      "type": "recreation"
+    },
+    {
+      "id": "marsh",
+      "name": "Marsh Chapel (MCH)",
+      "address": "735 Commonwealth Ave",
+      "code": "MCH",
+      "latitude": 42.3506661,
+      "longitude": -71.1064316,
+      "type": "student_life"
+    },
+    {
+      "id": "tsai",
+      "name": "Tsai Performance Center",
+      "address": "685 Commonwealth Ave",
+      "code": "",
+      "latitude": 42.3502809,
+      "longitude": -71.1045182,
+      "type": "student_life"
+    },
+    {
+      "id": "bookstore",
+      "name": "Barnes & Noble at BU",
+      "address": "660 Beacon St",
+      "code": "",
+      "aliases": ["Bookstore"],
+      "latitude": 42.3493053,
+      "longitude": -71.0962262,
+      "type": "student_life"
+    },
+    {
+      "id": "castle",
+      "name": "The Castle",
+      "address": "225 Bay State Rd",
+      "code": "",
+      "aliases": ["Dahod Family Alumni Center"],
+      "latitude": 42.350894,
+      "longitude": -71.1036354,
+      "type": "student_life"
+    },
+    {
+      "id": "celop",
+      "name": "Center for English Language & Orientation Programs (CELOP)",
+      "address": "890 Commonwealth Ave",
+      "code": "EOP",
+      "aliases": ["CELOP"],
+      "latitude": 42.3504886,
+      "longitude": -71.1156172,
+      "type": "student_life"
+    },
+    {
+      "id": "bupd",
+      "name": "BU Police",
+      "address": "32 Harry Agganis Way",
+      "code": "",
+      "aliases": ["BUPD", "Police"],
+      "latitude": 42.3524991,
+      "longitude": -71.1186058,
       "type": "student_life"
     }
   ]

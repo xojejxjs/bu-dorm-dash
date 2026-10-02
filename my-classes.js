@@ -1155,6 +1155,16 @@ function offerImport(results, source) {
   const already = found.filter(function (c) {
     return myClasses.items.some(function (item) { return sameMeeting(item, c); });
   }).length;
+  // 全都已经有了（比如同一个文件又传了一次）：没有新东西，不用问，问了反而容易多出一份一样的课表
+  // 还是照常合并一遍：文件里可能有原来没读到的教室、时间，可以补上
+  if (already === found.length) {
+    if (applyImport(results, 'add', '') > 0) {
+      return; // 补上了地点：已经有 "Updated N classes… Undo" 的提示
+    }
+    document.getElementById('schedule-status').textContent =
+      `All ${found.length} ${found.length === 1 ? 'class' : 'classes'} from ${source} ${found.length === 1 ? 'is' : 'are'} already in "${activeSchedule().name}".`;
+    return;
+  }
   myClasses.pendingImport = { results: results, source: source, count: found.length, already: already };
   renderImportChoice();
   document.getElementById('import-choice').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -1162,6 +1172,7 @@ function offerImport(results, source) {
 
 // 真正把读到的课放进去
 // 输入：读到的结果、'add'（加进当前这份）或 'new'（另存一份，名字是 name）
+// 输出：新文件帮多少门"原来没地点"的课补上了地点
 function applyImport(results, target, name) {
   if (target === 'new') {
     createSchedule(name);
@@ -1186,6 +1197,7 @@ function applyImport(results, target, name) {
     document.getElementById('schedule-status').textContent =
       `Saved as a new schedule, "${activeSchedule().name}". Switch between schedules at the top.`;
   }
+  return filledIn;
 }
 
 // 显示"加进哪一份"的选择卡片；没有要选的时候清空

@@ -1,6 +1,6 @@
 # SemesterMap
 
-**Your BU semester on a map.** SemesterMap helps Boston University students:
+**Your semester on a map.** SemesterMap helps Boston University students:
 
 1. **See where your classes are** — add your schedule and every building you go to shows up on the map.
 2. **Choose a dorm that fits your classes** — compare dorms by how long it actually takes to walk to the places you go every day.

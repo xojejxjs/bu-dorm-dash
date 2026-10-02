@@ -351,6 +351,17 @@ function fillRouteCheck(fromClass, toClass, gapMinutes) {
   to.dispatchEvent(new Event('change'));
 }
 
+// 存下来的示例课是不是旧版本：有一门示例课（课号 + 开始时间）不在现在的 SAMPLE_EVENTS 里，就是旧的
+// 只看"多出来的"，不看"少了的"：用户删掉一门示例课不算过期，不会被恢复
+function hasOutdatedSample(items) {
+  const current = SAMPLE_EVENTS.map(function (e) {
+    return e[0] + '@' + (Number(e[3].slice(0, 2)) * 60 + Number(e[3].slice(2))); // '0905' → 545 分钟
+  });
+  return items.some(function (c) {
+    return c.sample && !current.includes(c.course + '@' + c.start);
+  });
+}
+
 // 用户导入自己的课表时，先把示例课拿掉，免得混在一起
 function removeSampleClasses() {
   myClasses.items = myClasses.items.filter(function (c) { return !c.sample; });
@@ -1186,7 +1197,8 @@ function initMyClasses(placeIndex) {
     myClasses.items = saved;
     renderMyClasses();
     // 以前试过示例、存下来的是旧版示例课：换成现在的示例（用户自己的课不动）
-    if (saved.some(function (c) { return c.sample; })) {
+    // 只在过期时才换：示例还是现在这一版的话，保留用户对它做的确认、编辑
+    if (hasOutdatedSample(saved)) {
       removeSampleClasses();
       addSampleClasses();
     }

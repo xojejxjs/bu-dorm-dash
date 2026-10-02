@@ -875,11 +875,6 @@ button.walk-row:focus-visible {
   border-bottom-color: var(--ink);
 }
 
-/* 在 My week 里，宿舍的点变淡：这一页的主角是"我的课" */
-#map.tab-week .dorm-marker {
-  opacity: 0.3;
-}
-
 /* ===== My week：我的课，一门课一行 ===== */
 .list-head {
   display: flex;

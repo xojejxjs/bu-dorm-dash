@@ -67,8 +67,7 @@ function addDormMarkers(dorms) {
       color: 'white',       // 边框颜色
       weight: 2,            // 边框粗细
       fillColor: DORM_COLOR, // 宿舍：橙色（红色只留给"来不及"）
-      fillOpacity: 0.9,
-      className: 'dorm-marker' // 在 My week 标签页里变淡（style.css）
+      fillOpacity: 0.9
     })
       .bindTooltip(dorm.name) // 鼠标悬停时显示名字
       .on('click', function () {

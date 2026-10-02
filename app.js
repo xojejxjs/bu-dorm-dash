@@ -435,8 +435,10 @@ async function updateRoute(placeIndex, allowPartial) {
     return;
   }
   if (fromPlace.id === toPlace.id) {
-    // 两门课在同一栋楼（或者选了同一个地点）：不用走路
-    showRouteMessage('Both are in the same building — no walk needed.');
+    // 两门课在同一栋楼（或者选了同一个地点）：不用走路，但地图上还是标出是哪栋楼
+    showRouteMessage(`Both are in the same building (${escapeHtml(fromPlace.code || fromPlace.name)}) — no walk needed.`);
+    showRouteEnds(fromPlace, toPlace);
+    focusRouteEnds();
     return;
   }
   if (!(gapMinutes > 0)) {

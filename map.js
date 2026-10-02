@@ -155,8 +155,8 @@ function drawRouteLine(fromPlace, toPlace, verdict, path) {
   // featureGroup：把线和两个点当成一个整体，一起添加、一起删除，还能一起算范围
   routeLine = L.featureGroup([casing, line, start, end]).addTo(map);
 
-  // 记下路线两头是哪两个地点："我的课"的标签上会写 FROM / TO（layoutClassLabels）
-  routeEnds = { from: fromPlace.id, to: toPlace.id };
+  // 路线两头的楼：框出来，标上 FROM / TO
+  showRouteEnds(fromPlace, toPlace);
 
   // 手机上地图很小：画路线时把展开的图例收起来，路线和起点、终点的标签才放得下（点 "Show on map" 可以再打开）
   const legend = map.getContainer().querySelector('.map-legend');
@@ -174,9 +174,92 @@ function clearRouteLine() {
   if (routeLine !== null) {
     map.removeLayer(routeLine);
     routeLine = null;
-    routeEnds = null;
-    layoutClassLabels();
   }
+  clearRouteEnds();
+}
+
+// ===== 路线的起点、终点那两栋楼 =====
+// 不管是不是"我的课"的楼、是不是同一栋（同一栋楼时没有线，但也要让用户看到是哪栋楼），都：
+//   1. 用粗边框出来；
+//   2. 是"我的课"的楼：它的标签上写 FROM / TO（markRouteEnds）；
+//      不是的（比如宿舍、自己输入的地址）：另外放一个 "FROM · Warren Towers" 的标签
+
+const routeEndLayer = L.featureGroup().addTo(map);
+
+const ROUTE_END_STYLE = {
+  color: '#1a1f71',
+  weight: 4,
+  fillColor: '#1a1f71',
+  fillOpacity: 0.25,
+  interactive: false
+};
+
+// 输入：起点、终点（同一个地点也可以）
+function showRouteEnds(fromPlace, toPlace) {
+  // 之前在列表或地图上选中的那栋楼：去掉它的粗框，现在只有路线两头是粗框，不会分不清
+  if (selectedClassPlaceId !== null) {
+    selectClassPlace(null);
+  }
+  routeEndLayer.clearLayers();
+  routeEnds = { from: fromPlace.id, to: toPlace.id };
+  const same = fromPlace.id === toPlace.id;
+  const classIds = classLayer.getLayers().map(function (marker) { return marker.options.placeId; });
+  const ends = same ? [[fromPlace, 'From + To']] : [[fromPlace, 'From'], [toPlace, 'To']];
+
+  ends.forEach(function (end) {
+    const place = end[0];
+    const shape = buildingShapes[place.id];
+    const outline = shape
+      ? L.polygon(shape, ROUTE_END_STYLE)
+      : L.circle([place.latitude, place.longitude], Object.assign({ radius: 30, dashArray: '6 6' }, ROUTE_END_STYLE));
+    outline.addTo(routeEndLayer);
+
+    // 不是"我的课"的楼：没有现成的标签，另外放一个
+    if (!classIds.includes(place.id)) {
+      const bounds = outline.getBounds();
+      const name = place.code || place.name;
+      L.marker([bounds.getNorth(), bounds.getCenter().lng], {
+        icon: L.divIcon({
+          className: 'class-pin-wrapper',
+          html: `<div class="class-label route-end pos-above" style="--label-bg:${ROUTE_BORDER_COLOR}">` +
+            `<span class="label-role">${end[1]}</span>${escapeHtml(name)}</div>`,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0]
+        }),
+        interactive: false,
+        zIndexOffset: 15000
+      }).addTo(routeEndLayer);
+    }
+
+    // 同一栋楼：楼的下面再加一句说明，比只有 FROM + TO 更一眼看得懂
+    if (same) {
+      const bounds = outline.getBounds();
+      L.marker([bounds.getSouth(), bounds.getCenter().lng], {
+        icon: L.divIcon({
+          className: 'class-pin-wrapper',
+          html: '<div class="class-label route-note pos-below">Same building · no walk needed</div>',
+          iconSize: [0, 0],
+          iconAnchor: [0, 0]
+        }),
+        interactive: false,
+        zIndexOffset: 15000
+      }).addTo(routeEndLayer);
+    }
+  });
+  layoutClassLabels();
+}
+
+// 同一栋楼（没有路线）：地图移到这栋楼
+function focusRouteEnds() {
+  if (routeEndLayer.getLayers().length > 0) {
+    map.fitBounds(routeEndLayer.getBounds(), { padding: [90, 90], maxZoom: 17 });
+  }
+}
+
+function clearRouteEnds() {
+  routeEndLayer.clearLayers();
+  routeEnds = null;
+  layoutClassLabels();
 }
 
 // 让地图平滑地飞到某个地点
@@ -347,7 +430,7 @@ function showClassMarkers(groups) {
     })
       .bindTooltip(tooltip)
       .on('click', function () {
-        highlightPlace(group.place);
+        showClassesAt(group.place); // 左边 My classes 里标出在这栋楼上的课（my-classes.js）
       })
       .addTo(classLayer);
   });
@@ -493,7 +576,9 @@ function markRouteEnds() {
       return;
     }
     let role = '';
-    if (routeTouchesClass && marker.options.placeId === routeEnds.from) {
+    if (routeTouchesClass && marker.options.placeId === routeEnds.from && routeEnds.from === routeEnds.to) {
+      role = 'From + To'; // 同一栋楼
+    } else if (routeTouchesClass && marker.options.placeId === routeEnds.from) {
       role = 'From';
     } else if (routeTouchesClass && marker.options.placeId === routeEnds.to) {
       role = 'To';
@@ -518,8 +603,15 @@ function layoutClassLabels() {
   });
   const routePoints = routeScreenPoints();
   // 已经摆好的标签。地图自己的按钮和面板（缩放按钮、"Show on map" 图例）一开始就算"占了"，标签不放到它们下面
+  // 路线两头不是"我的课"的楼另外放的 FROM / TO 标签也算，"我的课"的标签不盖住它们
   const placed = Array.from(map.getContainer().querySelectorAll('.leaflet-control')).map(function (control) {
     return control.getBoundingClientRect();
+  });
+  routeEndLayer.eachLayer(function (layer) {
+    const label = layer.getElement && layer.getElement() && layer.getElement().querySelector('.class-label');
+    if (label) {
+      placed.push(label.getBoundingClientRect());
+    }
   });
 
   markers.forEach(function (marker) {

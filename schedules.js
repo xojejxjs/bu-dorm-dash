@@ -20,6 +20,7 @@ function nextScheduleName() {
 function resetScheduleView() {
   myClasses.openId = null;
   myClasses.expandedId = null;
+  myClasses.mapPlaceId = null;
   myClasses.selecting = false;
   myClasses.selected = new Set();
   myClasses.undo = null;

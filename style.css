@@ -1297,3 +1297,22 @@ button.walk-row.selected {
 .compare-note {
   margin: 8px 0 4px;
 }
+
+/* 在地图上点了一栋楼：列表里在这栋楼上的课（my-classes.js 的 showClassesAt） */
+.class-row.map-picked {
+  background: var(--action-bg);
+  box-shadow: inset 4px 0 0 var(--mine);
+}
+
+/* 同一栋楼时楼下面的说明："Same building · no walk needed"（map.js 的 showRouteEnds）
+   白底深蓝字，和课程标签区分开：一看就知道是说明，不是一栋楼的名字 */
+.class-label.route-note {
+  --label-bg: white;
+  color: var(--mine);
+  border-color: var(--mine);
+}
+
+/* 尾巴的外圈也用深蓝色，和边框连在一起 */
+.class-label.route-note.pos-below::before {
+  border-bottom-color: var(--mine);
+}

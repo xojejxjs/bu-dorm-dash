@@ -15,6 +15,7 @@ const myClasses = {
   placeIndex: null, // 地点搜索索引（app.js 建好后传进来）
   openId: null,     // 当前展开（正在确认 / 编辑）的是哪门课
   expandedId: null, // 列表里点开看详情的是哪门课（一次只开一门）
+  mapPlaceId: null, // 在地图上点了哪栋楼：列表里在这栋楼上的课都标出来
   undo: null,       // 上一步之前的样子，用来 Undo
   selecting: false, // 是不是在"批量选择"模式（每门课前面有一个圈）
   selected: new Set() // 批量选择模式下，勾选了哪些课（存课的 id）
@@ -652,10 +653,29 @@ function renderCard(c) {
     </li>`;
 }
 
+// 在地图上点了"我的课"的一栋楼：切到 My week，列表里在这栋楼上的课都标出来，滚过去
+// 这栋楼只有一门课时直接展开；有好几门时都标出来，用户自己点要看的那一门
+function showClassesAt(place) {
+  showTab('week');
+  const here = myClasses.items.filter(function (c) {
+    return c.status === 'confirmed' && c.place && c.place.id === place.id;
+  });
+  myClasses.mapPlaceId = place.id;
+  myClasses.expandedId = here.length === 1 ? here[0].id : null;
+  renderMyClasses();
+  selectClassPlace(place);
+  const first = document.querySelector('#schedule-list .class-row.map-picked');
+  if (first) {
+    first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
 // 已经确定的课：收起时只有一行（课名、楼、什么时候），点一下展开看详情
 // 只留下和地图、课间步行对得上的信息：楼的代码和地图上的标签一样，时间用来看懂课间步行
 function renderClassRow(c) {
   const expanded = myClasses.expandedId === c.id;
+  // 在地图上点了这门课的楼：标出来（showClassesAt）
+  const picked = myClasses.mapPlaceId !== null && c.place.id === myClasses.mapPlaceId ? ' map-picked' : '';
   const head = `
     <button type="button" class="class-row-head" data-action="toggle" aria-expanded="${expanded}">
       <span class="color-dot"></span>
@@ -664,12 +684,12 @@ function renderClassRow(c) {
       <span class="class-row-when">${escapeHtml(shortWhen(c))}</span>
     </button>`;
   if (!expanded) {
-    return `<li class="class-row" data-id="${c.id}">${head}</li>`;
+    return `<li class="class-row${picked}" data-id="${c.id}">${head}</li>`;
   }
   // 展开：完整的课号、时间、楼名、教室；只有用户自己设的地点才特别标出来
   const badge = c.source === 'schedule' ? '' : '<span class="badge badge-user">Location set by you</span>';
   return `
-    <li class="class-row expanded" data-id="${c.id}">
+    <li class="class-row expanded${picked}" data-id="${c.id}">
       ${head}
       <div class="class-row-detail">
         ${badge}
@@ -1027,6 +1047,7 @@ function handleListClick(event) {
   // 点一门课的那一行：展开 / 收起详情；地图移到这栋楼、框出来，这门课的标签挪到框的上方（map.js）
   if (action === 'toggle') {
     myClasses.expandedId = myClasses.expandedId === item.id ? null : item.id;
+    myClasses.mapPlaceId = null; // 用户自己在列表里点了一门课，不再标出地图上点的那栋楼
     renderMyClasses();
     selectClassPlace(myClasses.expandedId !== null ? item.place : null);
     return;

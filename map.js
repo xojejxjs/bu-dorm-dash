@@ -58,7 +58,7 @@ function refreshMarkers() {
 
 // 把所有宿舍画到地图上
 // 输入：dorms 数组（来自 data.json）
-// 输出：每个宿舍一个深灰蓝色圆点（登记到 markerEntries，由 refreshMarkers 决定是否显示）
+// 输出：每个宿舍一个橙色圆点（登记到 markerEntries，由 refreshMarkers 决定是否显示）
 function addDormMarkers(dorms) {
   dorms.forEach(function (dorm) {
     // forEach 会对数组里的每一项执行一次这个函数，dorm 就是"当前这一个宿舍"
@@ -66,7 +66,7 @@ function addDormMarkers(dorms) {
       radius: 9,
       color: 'white',       // 边框颜色
       weight: 2,            // 边框粗细
-      fillColor: DORM_COLOR, // 宿舍：深灰蓝（红色只留给"来不及"）
+      fillColor: DORM_COLOR, // 宿舍：橙色（红色只留给"来不及"）
       fillOpacity: 0.9,
       className: 'dorm-marker' // 在 My week 标签页里变淡（style.css）
     })
@@ -91,7 +91,7 @@ const TYPE_COLORS = {
   student_life: '#c026d3' // 学生服务（GSU、ISSO 等）：品红（原来的青绿色和 🟢 太像）
 };
 const DEFAULT_TYPE_COLOR = '#666666'; // data.json 里出现没定义过的 type 时用灰色
-const DORM_COLOR = '#334155';         // 宿舍：深灰蓝
+const DORM_COLOR = '#ea580c';         // 宿舍：橙色（暖色，像"家"；和别的类型都分得开）
 
 // 把所有教学楼画到地图上（逻辑和宿舍一样，颜色按 type 决定）
 function addBuildingMarkers(buildings) {

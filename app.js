@@ -64,10 +64,11 @@ function showDormInfo(dorm) {
     unitsHtml = `<p><strong>Buildings:</strong> ${dorm.units.join(', ')}</p>`;
   }
 
-  // 覆盖的地址（Bay State Road 这类"一个点代表一段街"的宿舍）：有才显示
+  // 覆盖的地址（Bay State Road 这类"一个点代表一段街"的宿舍）：只写门牌号的范围，比如 "153–214 Bay State Rd"
+  // 一个一个的地址还留在 data.json 里，搜索 "188 Bay State Road" 照样能找到，只是不全部列出来
   let addressesHtml = '';
   if (dorm.addresses && dorm.addresses.length > 0) {
-    addressesHtml = `<p><strong>Addresses included:</strong> ${dorm.addresses.join(', ')}</p>`;
+    addressesHtml = `<p><strong>Addresses:</strong> ${dorm.address}</p>`;
   }
 
   // 官方页面：有才显示
@@ -663,7 +664,9 @@ async function main() {
       return;
     }
 
-    const dorm = findPlace(searchIndex, query);
+    // 先按名字 / 别名找；找不到再按门牌号找：
+    // "188 Bay State Road" 落在 "153–214 Bay State Rd" 这个范围里，就是那一段的宿舍（schedule.js 的 findPlaceByAddress）
+    const dorm = findPlace(searchIndex, query) || findPlaceByAddress(query, searchIndex);
     if (dorm === undefined) {
       // 用 textContent 而不是 innerHTML：query 是用户打的字，不能当 HTML 执行
       message.textContent = `No dorm matches "${query}".`;

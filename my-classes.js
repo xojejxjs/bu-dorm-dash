@@ -295,17 +295,18 @@ async function handleAddressLookup(card) {
 // ===== 示例课表 =====
 //
 // 给手边没有课表的人试用（比如活动现场扫码打开的人）
-// 课是虚构的，但楼和教室是真的；特意安排了能展示三个功能的情况：
-//   有好几栋楼 → 地图上看分布；有一门没写教室 → 展示"需要确认"；
-//   Chemistry（SCI）10:45 下课，Hospitality（SHA）11:00 上课 → 15 分钟走不到，展示"课间来不及"
+// 每门课都是真实的 BU 课（课号、课名、时间、教室都没改），从几份不同的课表里各取一部分混在一起，
+// 不会出现任何一个人的完整课表，也不放老师名字和班级号码。正好能展示三个功能：
+//   好几栋楼 → 地图上看分布；Calculus 1 本来就没有教室 → 展示"需要确认"；
+//   周三 Macro（PRB）9:55 下课 → Experience Management（SHA）10:10 上课，走路约 18 分钟 → 🔴 来不及；
+//   周一三 Multivariate（LSE）2:15 下课 → Foundation Drawing（CFA）2:30 上课，约 14 分钟 → 🟡 很紧
 // 用 .ics 的格式写，和用户导入 BU 日历文件走同一条路，所以示例能证明真实流程也是好的
 const SAMPLE_EVENTS = [
-  ['CASMA 123', 'Calculus I', 'MO,WE,FR', '0905', '0955', '111 Cummington Mall MCS B37'],
-  ['CASWR 120', 'Writing Seminar', 'MO,WE,FR', '1010', '1100', '685-725 Comm Ave CAS 214'],
-  ['CASCH 101', 'General Chemistry', 'TU,TH', '0930', '1045', '590 Comm Ave SCI 107'],
-  ['SHAHF 100', 'Intro to Hospitality', 'TU,TH', '1100', '1215', '928 Commonwealth Ave SHA 110'],
-  ['CDSDS 110', 'Intro to Data Science', 'MO,WE,FR', '1325', '1415', '665 Comm Ave CDS 164'],
-  ['CASPS 101', 'Intro to Psychology', 'FR', '1535', '1625', '']
+  ['CASEC 102', 'Intro Macroeconomic Analysis', 'WE', '0905', '0955', '3 Cummington Mall PRB 148'],
+  ['SHAHF 150', 'Experience Management', 'MO,WE', '1010', '1155', '928 Commonwealth Ave SHA 110'],
+  ['CASMA 225', 'Multivariate Calculus', 'MO,WE,FR', '1325', '1415', '24 Cummington Mall LSE B01'],
+  ['CFAAR 131', 'Foundation Drawing 1', 'MO,WE', '1430', '1715', '855 Commonwealth Ave CFA 304'],
+  ['CASMA 123', 'Calculus 1', 'TH', '1830', '2030', 'No room assigned NO ROOM']
 ];
 
 function sampleIcs() {
@@ -321,20 +322,25 @@ function sampleIcs() {
   return lines.join('\r\n');
 }
 
-// 点 "Try a sample schedule"：导入示例课，然后在 Route check 里填好"课间来不及"的那两节课
-function loadSampleSchedule() {
+// 读出示例课，每门都标上 sample，之后可以整批拿掉
+function addSampleClasses() {
   const result = parseIcs(sampleIcs(), myClasses.placeIndex, []);
   result.located.concat(result.unlocated).forEach(function (c) { c.sample = true; });
   addParsedSchedule(result);
+}
+
+// 点 "Try a sample schedule"：导入示例课，然后在 Route check 里填好"课间来不及"的那两节课
+function loadSampleSchedule() {
+  addSampleClasses();
   fillSampleRoute();
 }
 
-// 在 Route check 里填好示例中"课间来不及"的两节课：Chemistry（SCI）10:45 下课 → Hospitality（SHA）11:00 上课
+// 在 Route check 里填好示例中"课间来不及"的两节课：周三 Macro（PRB）9:55 下课 → Experience Management（SHA）10:10 上课
 function fillSampleRoute() {
-  const chem = myClasses.items.find(function (c) { return c.course === 'CASCH 101'; });
-  const hosp = myClasses.items.find(function (c) { return c.course === 'SHAHF 100'; });
-  if (chem && hosp) {
-    fillRouteCheck(chem, hosp, 15); // 10:45 下课 → 11:00 上课
+  const macro = myClasses.items.find(function (c) { return c.sample && c.course === 'CASEC 102'; });
+  const sha = myClasses.items.find(function (c) { return c.sample && c.course === 'SHAHF 150'; });
+  if (macro && sha) {
+    fillRouteCheck(macro, sha, 15); // 9:55 下课 → 10:10 上课
   }
 }
 
@@ -490,7 +496,7 @@ function renderMyClasses() {
   if (items.some(function (c) { return c.sample; })) {
     html += `<div class="sample-banner">👀 This is a <strong>made-up sample schedule</strong>.
       Add your own schedule above and it replaces the sample.
-      <button type="button" class="small-button" data-action="sample-route">Can I walk from Chemistry to Hospitality in 15 min?</button></div>`;
+      <button type="button" class="small-button" data-action="sample-route">Can I walk from Macroeconomics (PRB) to Experience Management (SHA) in 15 min?</button></div>`;
   }
 
   // 1. 需要确认的放最上面，并有一个醒目的提示
@@ -1141,8 +1147,15 @@ function initMyClasses(placeIndex) {
   if (saved.length > 0) {
     myClasses.items = saved;
     renderMyClasses();
+    // 以前试过示例、存下来的是旧版示例课：换成现在的示例（用户自己的课不动）
+    if (saved.some(function (c) { return c.sample; })) {
+      removeSampleClasses();
+      addSampleClasses();
+    }
+    // 按现在列表里的课数（示例可能刚换过，数量会变）
+    const count = myClasses.items.length;
     const status = document.getElementById('schedule-status');
-    status.textContent = `Welcome back: loaded ${saved.length} saved ${saved.length === 1 ? 'class' : 'classes'}. ` + status.textContent;
+    status.textContent = `Welcome back: loaded ${count} saved ${count === 1 ? 'class' : 'classes'}. ` + status.textContent;
   }
 }
 

@@ -117,6 +117,7 @@ function addBuildingMarkers(buildings) {
 
 // 当前画在地图上的路线。一次只保留一条，所以用一个变量记住它，下次画之前先删掉
 let routeLine = null;
+let routeEnds = null; // 现在画的路线从哪个地点到哪个地点：{ from: id, to: id }
 
 // 在地图上画 A → B 的路线（统一一种醒目的颜色）
 // 输入：起点对象、终点对象、结论（'green' / 'yellow' / 'red'）
@@ -142,11 +143,29 @@ function drawRouteLine(fromPlace, toPlace, verdict, path) {
   const casing = L.polyline(points, { color: ROUTE_BORDER_COLOR, weight: 9, opacity: 1, dashArray: dash });
   const line = L.polyline(points, { color: ROUTE_COLOR, weight: 5, opacity: 1, dashArray: dash });
 
-  // featureGroup：把两条线当成一个整体，一起添加、一起删除，还能一起算范围
-  routeLine = L.featureGroup([casing, line]).addTo(map);
+  // 起点、终点：路线和别的标签挤在一起时，也能一眼看出从哪里走到哪里
+  // 起点：白色圆点、深蓝边；终点：深蓝实心圆点、白边（导航软件常见的样子）
+  const start = L.circleMarker(points[0], {
+    radius: 7, color: ROUTE_BORDER_COLOR, weight: 3, fillColor: 'white', fillOpacity: 1
+  }).bindTooltip('Start: ' + fromPlace.name);
+  const end = L.circleMarker(points[points.length - 1], {
+    radius: 8, color: 'white', weight: 3, fillColor: ROUTE_BORDER_COLOR, fillOpacity: 1
+  }).bindTooltip('End: ' + toPlace.name);
 
-  // 自动缩放，让整条线都在视野里；padding 留出边距，点不会贴着地图边缘
-  map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
+  // featureGroup：把线和两个点当成一个整体，一起添加、一起删除，还能一起算范围
+  routeLine = L.featureGroup([casing, line, start, end]).addTo(map);
+
+  // 记下路线两头是哪两个地点："我的课"的标签上会写 FROM / TO（layoutClassLabels）
+  routeEnds = { from: fromPlace.id, to: toPlace.id };
+
+  // 手机上地图很小：画路线时把展开的图例收起来，路线和起点、终点的标签才放得下（点 "Show on map" 可以再打开）
+  const legend = map.getContainer().querySelector('.map-legend');
+  if (legend && legend.open && window.matchMedia('(max-width: 768px)').matches) {
+    legend.open = false;
+  }
+
+  // 自动缩放，让整条线都在视野里；padding 留出边距：左右多留一些，起点、终点的标签放得下
+  map.fitBounds(routeLine.getBounds(), { padding: [90, 60] });
   layoutClassLabels(); // 标签避开新的路线（地图移动结束后还会再摆一次）
 }
 
@@ -155,6 +174,7 @@ function clearRouteLine() {
   if (routeLine !== null) {
     map.removeLayer(routeLine);
     routeLine = null;
+    routeEnds = null;
     layoutClassLabels();
   }
 }
@@ -300,7 +320,9 @@ function showClassMarkers(groups) {
     // 两种写法都放进去：完整的 "CAS · 3 classes"，和挤的时候用的短的 "CAS"（style.css 决定显示哪个）
     const icon = L.divIcon({
       className: 'class-pin-wrapper',
-      html: `<div class="class-label" style="background:${group.color}">` +
+      // label-role：画了路线、这栋楼是起点或终点时，写上 FROM / TO（markRouteEnds）
+      // --label-bg：标签的底色；小尾巴（style.css 的 ::after）也用这个颜色，看起来是一体的
+      html: `<div class="class-label" style="--label-bg:${group.color}"><span class="label-role"></span>` +
         `<span class="label-full">${escapeHtml(label)}</span><span class="label-short">${escapeHtml(shortName)}</span></div>`,
       iconSize: [0, 0],
       iconAnchor: [0, 0]
@@ -385,6 +407,7 @@ const COST_LABEL = 10;     // 和别的标签重叠
 const COST_BUILDING = 3;   // 压住别的上课楼的轮廓
 const COST_ROUTE = 3;      // 压住地图上的路线
 const COST_COMPACT = 2;    // 缩小成只写楼代码（能完整显示就尽量完整）
+const COST_OFFSCREEN = 8;  // 有一部分跑到地图外面（手机上地图窄，最容易发生）
 
 // 标签贴着楼的哪一边：返回那一边中点的经纬度（style.css 的 .pos-above 等决定标签往哪个方向伸出去）
 function labelAnchor(bounds, pos) {
@@ -417,6 +440,10 @@ function boxesOverlap(a, b) {
 // 这个位置挡住了多少东西
 function placementCost(box, ownId, placed, outlines, routePoints) {
   let cost = 0;
+  const mapBox = map.getContainer().getBoundingClientRect();
+  if (box.left < mapBox.left || box.right > mapBox.right || box.top < mapBox.top || box.bottom > mapBox.bottom) {
+    cost += COST_OFFSCREEN;
+  }
   placed.forEach(function (other) {
     if (boxesOverlap(box, other)) {
       cost += COST_LABEL;
@@ -455,17 +482,45 @@ function routeScreenPoints() {
   return points;
 }
 
-// 选中的标签最先摆（它最重要），然后是课多的楼
+// 画了路线时：起点、终点那两栋楼的标签写上 FROM / TO 并加深色边；别的"我的课"标签变淡
+// 路线两头都不是上课的楼（比如宿舍 → 体育馆）时，标签保持原样
+function markRouteEnds() {
+  const ids = classLayer.getLayers().map(function (marker) { return marker.options.placeId; });
+  const routeTouchesClass = routeEnds !== null && (ids.includes(routeEnds.from) || ids.includes(routeEnds.to));
+  classLayer.getLayers().forEach(function (marker) {
+    const label = marker.getElement() && marker.getElement().querySelector('.class-label');
+    if (!label) {
+      return;
+    }
+    let role = '';
+    if (routeTouchesClass && marker.options.placeId === routeEnds.from) {
+      role = 'From';
+    } else if (routeTouchesClass && marker.options.placeId === routeEnds.to) {
+      role = 'To';
+    }
+    label.querySelector('.label-role').textContent = role;
+    label.classList.toggle('route-end', role !== '');
+    label.classList.toggle('route-other', routeTouchesClass && role === '');
+    marker.options.routeEnd = role !== '';
+  });
+}
+
+// 选中的标签和路线两头的标签最先摆（它们最重要），然后是课多的楼
 function layoutClassLabels() {
+  markRouteEnds();
   const markers = classLayer.getLayers().slice().sort(function (a, b) {
     return (b.options.selected ? 1 : 0) - (a.options.selected ? 1 : 0) ||
+      (b.options.routeEnd ? 1 : 0) - (a.options.routeEnd ? 1 : 0) ||
       b.options.classCount - a.options.classCount;
   });
   const outlines = classOutlineLayer.getLayers().map(function (layer) {
     return { id: layer.options.placeId, box: screenBox(layer.getBounds()) };
   });
   const routePoints = routeScreenPoints();
-  const placed = []; // 已经摆好的标签
+  // 已经摆好的标签。地图自己的按钮和面板（缩放按钮、"Show on map" 图例）一开始就算"占了"，标签不放到它们下面
+  const placed = Array.from(map.getContainer().querySelectorAll('.leaflet-control')).map(function (control) {
+    return control.getBoundingClientRect();
+  });
 
   markers.forEach(function (marker) {
     const label = marker.getElement() && marker.getElement().querySelector('.class-label');
@@ -475,8 +530,8 @@ function layoutClassLabels() {
     // 试遍"完整 / 缩小" × "上 / 下 / 右 / 左"，记下分最低的
     let best = null;
     [false, true].forEach(function (compact) {
-      if (compact && marker.options.selected) {
-        return; // 选中的标签永远完整显示
+      if (compact && (marker.options.selected || marker.options.routeEnd)) {
+        return; // 选中的标签、路线两头的标签永远完整显示
       }
       LABEL_POSITIONS.forEach(function (pos) {
         if (best && best.cost === 0) {
@@ -497,6 +552,9 @@ function layoutClassLabels() {
     let z = marker.options.classCount * 100;
     if (best.compact) {
       z = 10000;
+    }
+    if (marker.options.routeEnd) {
+      z = 15000;
     }
     if (marker.options.selected) {
       z = 20000;
@@ -589,6 +647,9 @@ function addLegend() {
       }
       refreshMarkers();
     });
+
+    // 图例展开 / 收起，占的地方变了："我的课"的标签重新摆，不被图例挡住
+    box.addEventListener('toggle', layoutClassLabels);
 
     return box;
   };

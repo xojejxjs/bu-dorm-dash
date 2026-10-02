@@ -573,8 +573,11 @@ main {
 
 /* 地图上"我的课"的标签："CAS · 3 classes"，颜色和列表里的卡片一致 */
 .class-label {
+  --label-bg: var(--mine);
+  position: relative; /* 小尾巴（::before / ::after）以标签为准定位 */
   display: inline-block;
-  transform: translate(-50%, calc(-100% - 4px)); /* 默认放在楼的正上方 */
+  background: var(--label-bg);
+  transform: translate(-50%, calc(-100% - 10px)); /* 默认放在楼的正上方 */
   white-space: nowrap;
   padding: 3px 8px;
   border: 2px solid white;
@@ -1044,10 +1047,45 @@ button.walk-row.selected {
 
 /* 标签放在楼的哪一边（map.js 的 layoutClassLabels 选不挡东西的那一边）
    标记的位置是楼那一边的中点，标签从那里往外伸，留 4px 空隙，不压在楼上 */
-.class-label.pos-above { transform: translate(-50%, calc(-100% - 4px)); }
-.class-label.pos-below { transform: translate(-50%, 4px); }
-.class-label.pos-right { transform: translate(4px, -50%); }
-.class-label.pos-left  { transform: translate(calc(-100% - 4px), -50%); }
+.class-label.pos-above { transform: translate(-50%, calc(-100% - 10px)); }
+.class-label.pos-below { transform: translate(-50%, 10px); }
+.class-label.pos-right { transform: translate(10px, -50%); }
+.class-label.pos-left  { transform: translate(calc(-100% - 10px), -50%); }
+
+/* 小尾巴：像对话框一样指向它说的那栋楼（标签和楼之间留了 10px，正好放下尾巴）
+   ::before 是白色的外圈（和标签的白边连在一起），::after 是和标签同色的里面 */
+.class-label::before,
+.class-label::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border: solid transparent;
+}
+
+/* 标签在楼的上方：尾巴在标签下边，朝下 */
+.class-label.pos-above::before,
+.class-label.pos-above::after { left: 50%; transform: translateX(-50%); }
+.class-label.pos-above::before { top: 100%; border-width: 9px 8px 0; border-top-color: white; }
+.class-label.pos-above::after  { top: calc(100% - 2px); border-width: 7px 6px 0; border-top-color: var(--label-bg); }
+
+/* 标签在楼的下方：尾巴在标签上边，朝上 */
+.class-label.pos-below::before,
+.class-label.pos-below::after { left: 50%; transform: translateX(-50%); }
+.class-label.pos-below::before { bottom: 100%; border-width: 0 8px 9px; border-bottom-color: white; }
+.class-label.pos-below::after  { bottom: calc(100% - 2px); border-width: 0 6px 7px; border-bottom-color: var(--label-bg); }
+
+/* 标签在楼的右边：尾巴在标签左边，朝左 */
+.class-label.pos-right::before,
+.class-label.pos-right::after { top: 50%; transform: translateY(-50%); }
+.class-label.pos-right::before { right: 100%; border-width: 8px 9px 8px 0; border-right-color: white; }
+.class-label.pos-right::after  { right: calc(100% - 2px); border-width: 6px 7px 6px 0; border-right-color: var(--label-bg); }
+
+/* 标签在楼的左边：尾巴在标签右边，朝右 */
+.class-label.pos-left::before,
+.class-label.pos-left::after { top: 50%; transform: translateY(-50%); }
+.class-label.pos-left::before { left: 100%; border-width: 8px 0 8px 9px; border-left-color: white; }
+.class-label.pos-left::after  { left: calc(100% - 2px); border-width: 6px 0 6px 7px; border-left-color: var(--label-bg); }
 
 /* ===== 多份课表的切换栏（schedules.js） ===== */
 .schedule-chips {
@@ -1103,4 +1141,36 @@ button.walk-row.selected {
 
 .schedule-delete {
   color: var(--late);
+}
+
+/* ===== 路线的起点、终点（map.js 的 markRouteEnds） ===== */
+/* 标签前面的 FROM / TO 小标记：平时不显示 */
+.class-label .label-role {
+  display: none;
+}
+
+.class-label.route-end .label-role {
+  display: inline-block;
+  margin-right: 5px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: white;
+  color: var(--mine);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* 起点、终点的标签：加一圈深色边，和"点开的课"一样醒目 */
+.class-label.route-end {
+  box-shadow: 0 0 0 3px var(--ink), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* 和这条路线无关的"我的课"标签：变淡，不抢注意力（鼠标移上去恢复） */
+.class-label.route-other {
+  opacity: 0.45;
+}
+
+.class-label.route-other:hover {
+  opacity: 1;
 }

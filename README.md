@@ -96,6 +96,10 @@ node tools/fetch-shapes.js
 
 This is an independent student project and is not affiliated with Boston University.
 
+## License
+
+© 2026 Menglu Wu. All rights reserved. The code is public so the site can be viewed and read, but it is **not open source**: please don't copy, reuse or redistribute it without written permission. See [LICENSE](LICENSE).
+
 ## Roadmap
 
 - Outlines for every building; student-service locations (GSU, ISSO); show/hide places by type

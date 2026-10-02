@@ -1,0 +1,22 @@
+Copyright (c) 2026 Menglu Wu. All rights reserved.
+
+This repository is public so that the website can be viewed and the code can be
+read. That does not make it open source.
+
+No permission is granted to copy, modify, merge, publish, distribute,
+sublicense or sell this software, its code, its design or the data it contains
+(including data.json, walk-times.json and shapes.json), in whole or in part,
+without prior written permission from the author.
+
+You may use the published website (SemesterMap) for your own personal use.
+
+Third-party material keeps its own terms:
+- Map data, building outlines and address search: (c) OpenStreetMap
+  contributors, available under the Open Database License (ODbL).
+- Walking routes: openrouteservice (HeiGIT), under its terms of use.
+- Dorm information summarises public pages of Boston University Housing.
+
+SemesterMap is an independent student project and is not affiliated with,
+endorsed by or sponsored by Boston University.
+
+To ask for permission, open an issue at https://github.com/xojejxjs/bu-dorm-dash

@@ -1174,3 +1174,34 @@ button.walk-row.selected {
 .class-label.route-other:hover {
   opacity: 1;
 }
+
+/* ===== 导入时：加进当前这份，还是另存一份（my-classes.js 的 renderImportChoice） ===== */
+.import-choice {
+  margin: 10px 0;
+  padding: 10px;
+  border: 1px solid var(--action);
+  border-radius: 8px;
+  background: var(--action-bg);
+  font-size: 13px;
+}
+
+#sidebar .import-choice #import-name {
+  display: block;
+  margin-top: 6px;
+}
+
+.import-hint {
+  margin: 6px 0;
+}
+
+.import-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.import-actions .primary-button {
+  width: auto;
+  padding: 6px 18px;
+}

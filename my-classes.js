@@ -399,7 +399,15 @@ function hasOutdatedSample(items) {
 
 // 用户导入自己的课表时，先把示例课拿掉，免得混在一起
 function removeSampleClasses() {
+  const hadSample = myClasses.items.some(function (c) { return c.sample; });
   myClasses.items = myClasses.items.filter(function (c) { return !c.sample; });
+  // 示例课没了，示例填好的那条路线也一起清掉，不然地图上留着一条和用户的课无关的线
+  if (hadSample) {
+    clearRouteLine();
+    document.getElementById('from-input').value = '';
+    document.getElementById('to-input').value = '';
+    showRouteMessage('Choose a starting point and a destination to see the walking time.');
+  }
 }
 
 // ===== 状态变化 =====
@@ -492,6 +500,9 @@ function renderMyClasses() {
 
   // 有好几份课表时，最上面的切换栏（schedules.js）
   renderScheduleSwitcher();
+
+  // 还没选好的导入卡片：课表名字可能变了（比如换了一份课表），跟着更新
+  renderImportChoice();
 
   const items = myClasses.items;
   const list = document.getElementById('schedule-list');
@@ -1104,6 +1115,57 @@ async function readOneFile(file, number, total) {
 async function handleScheduleFiles(files) {
   const status = document.getElementById('schedule-status');
   removeSampleClasses();
+
+  // 先把所有文件都读完，再决定放进哪一份课表
+  const results = [];
+  const errors = [];
+  for (let i = 0; i < files.length; i++) {
+    const result = await readOneFile(files[i], i + 1, files.length);
+    if (result.error) {
+      errors.push(result.error);
+    } else {
+      results.push(result);
+    }
+  }
+
+  // 读完了："Reading …" 这类进度提示换成出错的原因；都读成功了就清空
+  status.textContent = errors.join(' ');
+  if (results.length > 0) {
+    const source = files.length === 1 ? `"${files[0].name}"` : `${files.length} files`;
+    offerImport(results, source);
+  }
+}
+
+// ===== 导入时：加进当前这份课表，还是另存一份 =====
+//
+// 只有当前这份课表里已经有自己的课时才问（第一次导入、只有示例课时不问，直接加）
+// 默认是"加进当前这份"：一份课表分成好几张截图时，用户直接点 Done 就行
+// 读到的课大多和现在的不一样时，提醒一句"看起来是另一份课表"，但还是让用户自己选
+
+// 读完文件、或者粘贴的文字以后都走这里
+// 输入：[{ located, unlocated }]（每个文件一份）、给用户看的来源（比如 '"Fall 2026 calendar.ics"'）
+function offerImport(results, source) {
+  const found = [].concat.apply([], results.map(function (r) { return r.located.concat(r.unlocated); }));
+  const hasOwnClasses = myClasses.items.some(function (c) { return !c.sample; });
+  if (found.length === 0 || !hasOwnClasses) {
+    applyImport(results, 'add', '');
+    return;
+  }
+  // 读到的课里，有几门当前这份课表里已经有了（同一门课、同一个时段）
+  const already = found.filter(function (c) {
+    return myClasses.items.some(function (item) { return sameMeeting(item, c); });
+  }).length;
+  myClasses.pendingImport = { results: results, source: source, count: found.length, already: already };
+  renderImportChoice();
+  document.getElementById('import-choice').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// 真正把读到的课放进去
+// 输入：读到的结果、'add'（加进当前这份）或 'new'（另存一份，名字是 name）
+function applyImport(results, target, name) {
+  if (target === 'new') {
+    createSchedule(name);
+  }
   const hadClasses = myClasses.items.length > 0;
   // 记下读之前的样子：如果新文件自动补上了地点，用户可以 Undo
   const before = myClasses.items.map(function (item) {
@@ -1111,23 +1173,73 @@ async function handleScheduleFiles(files) {
   });
 
   let filledIn = 0;
-  const errors = [];
-  for (let i = 0; i < files.length; i++) {
-    const result = await readOneFile(files[i], i + 1, files.length);
-    if (result.error) {
-      errors.push(result.error);
-    } else {
-      filledIn += addParsedSchedule(result);
-    }
-  }
+  results.forEach(function (result) {
+    filledIn += addParsedSchedule(result);
+  });
 
-  if (errors.length > 0) {
-    status.textContent = errors.join(' ');
-  }
   // 之前已经有课、这次新文件补上了地点：告诉用户补了几门，可以撤销
   if (hadClasses && filledIn > 0) {
     myClasses.undo = before;
     showToast(`Updated ${filledIn} ${filledIn === 1 ? 'class' : 'classes'} from your new file`);
+  }
+  if (target === 'new') {
+    document.getElementById('schedule-status').textContent =
+      `Saved as a new schedule, "${activeSchedule().name}". Switch between schedules at the top.`;
+  }
+}
+
+// 显示"加进哪一份"的选择卡片；没有要选的时候清空
+function renderImportChoice() {
+  const box = document.getElementById('import-choice');
+  const pending = myClasses.pendingImport;
+  if (!pending) {
+    box.innerHTML = '';
+    return;
+  }
+  const current = escapeHtml(activeSchedule().name);
+  const alreadyNote = pending.already > 0
+    ? `<span class="option-note">${pending.already} of them ${pending.already === 1 ? 'is' : 'are'} already there</span>`
+    : '';
+  // 一半以上都是现在没有的课：多半是另一份课表（Plan B、室友的），提醒一句
+  const looksDifferent = pending.already < pending.count / 2
+    ? `<p class="hint import-hint">These look like different classes than "${current}". Saving them as a new schedule keeps the two apart.</p>`
+    : '';
+  box.innerHTML = `
+    <div class="import-choice">
+      <strong>✓ Found ${pending.count} ${pending.count === 1 ? 'class' : 'classes'} in ${escapeHtml(pending.source)}</strong>
+      <label class="location-option">
+        <input type="radio" name="import-target" value="add" checked>
+        <span>Add to "${current}" ${alreadyNote}</span>
+      </label>
+      <label class="location-option">
+        <input type="radio" name="import-target" value="new">
+        <span>Save as a new schedule:
+          <input type="text" id="import-name" maxlength="40" value="${escapeAttr(nextScheduleName())}">
+        </span>
+      </label>
+      ${looksDifferent}
+      <div class="import-actions">
+        <button type="button" class="primary-button" data-action="import-done">Done</button>
+        <button type="button" class="link-button" data-action="import-cancel">Cancel</button>
+      </div>
+    </div>`;
+}
+
+function handleImportChoiceClick(event) {
+  const button = event.target.closest('button[data-action]');
+  if (!button || !myClasses.pendingImport) {
+    return;
+  }
+  const pending = myClasses.pendingImport;
+  myClasses.pendingImport = null;
+  if (button.dataset.action === 'import-done') {
+    const target = document.querySelector('input[name="import-target"]:checked').value;
+    const name = document.getElementById('import-name').value.trim().slice(0, 40) || nextScheduleName();
+    renderImportChoice();
+    applyImport(pending.results, target, name);
+  } else {
+    renderImportChoice();
+    document.getElementById('schedule-status').textContent = 'Nothing was added.';
   }
 }
 
@@ -1211,7 +1323,20 @@ function initMyClasses(placeIndex) {
   document.getElementById('schedule-text-button').addEventListener('click', function () {
     const text = document.getElementById('schedule-text').value;
     removeSampleClasses();
-    addParsedSchedule(parseSchedule(textToLines(text), placeIndex, knownCourses()));
+    offerImport([parseSchedule(textToLines(text), placeIndex, knownCourses())], 'your text');
+  });
+
+  // 导入时"加进当前这份 / 另存一份"的选择卡片
+  const importBox = document.getElementById('import-choice');
+  importBox.addEventListener('click', handleImportChoiceClick);
+  // 点名字输入框、或者在里面打字，就是想另存一份：自动选上那一项
+  // （输入框放在 label 里面，点它不会自动选上 label 里的圆圈，要自己选）
+  ['focusin', 'click', 'input'].forEach(function (type) {
+    importBox.addEventListener(type, function (event) {
+      if (event.target.id === 'import-name') {
+        importBox.querySelector('input[value="new"]').checked = true;
+      }
+    });
   });
 
   document.getElementById('sample-button').addEventListener('click', loadSampleSchedule);

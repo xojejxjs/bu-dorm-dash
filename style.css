@@ -645,12 +645,6 @@ main {
   height: 100%;
 }
 
-/* 底图变成浅灰色：去掉颜色、调亮一点。只改底图瓦片，我们画上去的点、标签、路线不受影响
-   这样粉色高速、彩色图标不会和 🟢🟡🔴、"我的课"抢注意力 */
-.leaflet-tile-pane {
-  filter: grayscale(1) brightness(1.12) contrast(0.75);
-}
-
 /* 地图右下角的图例 */
 .map-legend {
   background: white;

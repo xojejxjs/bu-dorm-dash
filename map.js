@@ -10,8 +10,6 @@ const map = L.map('map', {
 
 // 添加地图的"底图"图层——没有这一步，地图容器是空白的
 // 这里用的是 OpenStreetMap 提供的免费地图瓦片，不需要 API key
-// 底图在 style.css 里调成了浅灰色（.leaflet-tile-pane 的 filter）：底图只做背景，
-// 我们自己的点、标签和路线才看得清（CARTO 的浅色底图现在要 API key，所以不用它）
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
   attribution: '&copy; OpenStreetMap contributors' // 使用免费地图要求保留这行版权说明

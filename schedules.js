@@ -48,14 +48,61 @@ function switchSchedule(id) {
 // 输出：新的课表
 function createSchedule(name) {
   syncActiveSchedule();
-  const id = Math.max.apply(null, myClasses.schedules.map(function (schedule) { return schedule.id; })) + 1;
-  const schedule = { id: id, name: name, items: [] };
+  const schedule = { id: newScheduleId(), name: name, items: [] };
   myClasses.schedules.push(schedule);
-  myClasses.activeId = id;
+  myClasses.activeId = schedule.id;
   myClasses.items = schedule.items;
   resetScheduleView();
   renderMyClasses();
   return schedule;
+}
+
+// 新课表的 id：比现在最大的大 1
+function newScheduleId() {
+  return Math.max.apply(null, myClasses.schedules.map(function (schedule) { return schedule.id; })) + 1;
+}
+
+// 把批量选中的课移到另一份课表（比如导入时选错了，或者想把一部分课拆出去）
+// 输入：另一份课表的 id，或者 'new'（新建一份，名字是 Schedule N）
+// 目标课表里已经有同一个时段的课，就不重复放；8 秒内可以 Undo
+function moveSelectedTo(value) {
+  const ids = myClasses.selected;
+  if (ids.size === 0) {
+    return;
+  }
+  syncActiveSchedule();
+  let target = myClasses.schedules.find(function (schedule) { return schedule.id === Number(value); });
+  const created = value === 'new' || !target;
+  if (created) {
+    target = { id: newScheduleId(), name: nextScheduleName(), items: [] };
+    myClasses.schedules.push(target);
+  }
+
+  // 记下移动之前两边的样子，Undo 时放回去
+  const sourceBefore = myClasses.items.slice();
+  const targetBefore = target.items.slice();
+
+  const moving = myClasses.items.filter(function (c) { return ids.has(c.id); });
+  myClasses.items = myClasses.items.filter(function (c) { return !ids.has(c.id); });
+  moving.forEach(function (c) {
+    if (!target.items.some(function (other) { return sameMeeting(other, c); })) {
+      target.items.push(c);
+    }
+  });
+
+  myClasses.selecting = false;
+  myClasses.selected = new Set();
+  myClasses.openId = null;
+  myClasses.expandedId = null;
+  myClasses.undo = function () {
+    myClasses.items = sourceBefore;
+    target.items = targetBefore;
+    if (created) {
+      myClasses.schedules = myClasses.schedules.filter(function (schedule) { return schedule !== target; });
+    }
+  };
+  renderMyClasses();
+  showToast(`Moved ${moving.length} ${moving.length === 1 ? 'class' : 'classes'} to "${target.name}"`);
 }
 
 // 改名：空的名字不接受，太长的截掉

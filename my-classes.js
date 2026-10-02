@@ -697,6 +697,22 @@ function compareByWeek(a, b) {
 
 // ===== 批量选择 =====
 
+// 工具条上的"移到另一份课表"：别的课表 + 新建一份（只有一份课表时，也能把一部分课拆出去）
+function renderMoveRow(none) {
+  let options = '';
+  myClasses.schedules.forEach(function (schedule) {
+    if (schedule.id !== myClasses.activeId) {
+      options += `<option value="${schedule.id}">${escapeHtml(schedule.name)}</option>`;
+    }
+  });
+  options += `<option value="new">A new schedule (${escapeHtml(nextScheduleName())})</option>`;
+  return `<div class="select-row">
+      <label for="bulk-move" class="move-label">Move to</label>
+      <select id="bulk-move" ${none}>${options}</select>
+      <button type="button" class="small-button" data-action="bulk-move" ${none}>Move</button>
+    </div>`;
+}
+
 // 列表上方的工具条
 // 平时：只有一个 "Select" 按钮；批量选择时：显示选了几门，以及"全选、删除、设地点、完成"
 function renderSelectToolbar(count) {
@@ -721,6 +737,7 @@ function renderSelectToolbar(count) {
       <input type="search" id="bulk-location" list="place-options" placeholder="New location, e.g. CAS 211" ${none}>
       <button type="button" class="small-button" data-action="bulk-location" disabled>Set location</button>
     </div>
+    ${renderMoveRow(none)}
     <button type="button" class="delete-button" data-action="bulk-delete" ${none}>
       Delete ${n} ${n === 1 ? 'class' : 'classes'}
     </button>
@@ -956,6 +973,10 @@ function handleListClick(event) {
       ? new Set()
       : new Set(selectable.map(function (c) { return c.id; }));
     renderMyClasses();
+    return;
+  }
+  if (action === 'bulk-move') {
+    moveSelectedTo(document.getElementById('bulk-move').value);
     return;
   }
   if (action === 'bulk-delete') {

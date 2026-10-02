@@ -1205,3 +1205,17 @@ button.walk-row.selected {
   width: auto;
   padding: 6px 18px;
 }
+
+/* 批量选择里的"Move to [课表] [Move]"：一行放下（#sidebar label / select 默认是整行宽，这里改回来） */
+#sidebar .select-row .move-label {
+  display: inline;
+  margin: 0;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+#sidebar .select-row select {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}

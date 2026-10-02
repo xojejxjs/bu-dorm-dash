@@ -147,6 +147,7 @@ function drawRouteLine(fromPlace, toPlace, verdict, path) {
 
   // 自动缩放，让整条线都在视野里；padding 留出边距，点不会贴着地图边缘
   map.fitBounds(routeLine.getBounds(), { padding: [60, 60] });
+  layoutClassLabels(); // 标签避开新的路线（地图移动结束后还会再摆一次）
 }
 
 // 把地图上的路线删掉（如果有的话）
@@ -154,6 +155,7 @@ function clearRouteLine() {
   if (routeLine !== null) {
     map.removeLayer(routeLine);
     routeLine = null;
+    layoutClassLabels();
   }
 }
 
@@ -283,10 +285,10 @@ function showClassMarkers(groups) {
   groups.forEach(function (group) {
     // 1. 楼的轮廓；没有轮廓数据的（比如一段街）画一个虚线小圆
     const shape = buildingShapes[group.place.id];
+    const style = Object.assign({ placeId: group.place.id }, CLASS_OUTLINE_STYLE);
     const outline = shape
-      ? L.polygon(shape, CLASS_OUTLINE_STYLE)
-      : L.circle([group.place.latitude, group.place.longitude],
-        Object.assign({ radius: 25, dashArray: '4 4' }, CLASS_OUTLINE_STYLE));
+      ? L.polygon(shape, style)
+      : L.circle([group.place.latitude, group.place.longitude], Object.assign({ radius: 25, dashArray: '4 4' }, style));
     outline.addTo(classOutlineLayer);
 
     // 2. 标签直接写清楚意思，不用鼠标悬停也能看懂
@@ -310,11 +312,13 @@ function showClassMarkers(groups) {
     });
     const tooltip = `<strong>${escapeHtml(group.place.name)}</strong><br>${lines.join('<br>')}`;
 
-    // 标签放在楼的正上方（轮廓的上边缘），不压在楼上，轮廓永远看得见
-    // classCount：标签挤在一起时，课多的楼优先显示完整标签
+    // 标签贴着楼的边放，不压在楼上，轮廓永远看得见；放在哪一边由 layoutClassLabels 决定
+    // bounds：楼的范围，用来算上、下、右、左四个可以放的位置
+    // classCount：标签挤在一起时，课多的楼优先挑位置
     const bounds = outline.getBounds();
-    L.marker([bounds.getNorth(), bounds.getCenter().lng], {
+    L.marker(labelAnchor(bounds, 'above'), {
       icon: icon,
+      bounds: bounds,
       placeId: group.place.id,
       classCount: count,
       zIndexOffset: count * 100
@@ -367,35 +371,131 @@ function applyClassSelection() {
   });
 }
 
-// 标签重叠时：后放的缩成只写楼代码的小标签（放大地图后会变回完整标签）
-// 选中的标签最先放，永远完整显示；缩小的标签放到最上层，不会被别的标签盖住
+// ===== 摆放"我的课"的标签：不挡别的标签、不挡别的上课楼、不挡路线 =====
+//
+// 标签不固定在一个位置：每个标签都试楼的上、下、右、左四个位置，
+// 给每个位置"打分"（挡住的东西越多分越高），选分最低的那个
+// 四个位置都不理想时，再试缩小的标签（只写楼代码，比如 "LSE"）
+// 地图移动、缩放、路线变了，都会重新摆一次
+
+const LABEL_POSITIONS = ['above', 'below', 'right', 'left'];
+
+// 挡住各种东西的"扣分"：挡住别的标签最糟糕（字会叠在一起看不清）
+const COST_LABEL = 10;     // 和别的标签重叠
+const COST_BUILDING = 3;   // 压住别的上课楼的轮廓
+const COST_ROUTE = 3;      // 压住地图上的路线
+const COST_COMPACT = 2;    // 缩小成只写楼代码（能完整显示就尽量完整）
+
+// 标签贴着楼的哪一边：返回那一边中点的经纬度（style.css 的 .pos-above 等决定标签往哪个方向伸出去）
+function labelAnchor(bounds, pos) {
+  const center = bounds.getCenter();
+  if (pos === 'above') {
+    return L.latLng(bounds.getNorth(), center.lng);
+  }
+  if (pos === 'below') {
+    return L.latLng(bounds.getSouth(), center.lng);
+  }
+  if (pos === 'right') {
+    return L.latLng(center.lat, bounds.getEast());
+  }
+  return L.latLng(center.lat, bounds.getWest());
+}
+
+// 把标签放到某个位置
+function placeLabel(marker, label, pos, compact) {
+  marker.setLatLng(labelAnchor(marker.options.bounds, pos));
+  LABEL_POSITIONS.forEach(function (p) {
+    label.classList.toggle('pos-' + p, p === pos);
+  });
+  label.classList.toggle('compact', compact);
+}
+
+function boxesOverlap(a, b) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+// 这个位置挡住了多少东西
+function placementCost(box, ownId, placed, outlines, routePoints) {
+  let cost = 0;
+  placed.forEach(function (other) {
+    if (boxesOverlap(box, other)) {
+      cost += COST_LABEL;
+    }
+  });
+  outlines.forEach(function (outline) {
+    if (outline.id !== ownId && boxesOverlap(box, outline.box)) {
+      cost += COST_BUILDING;
+    }
+  });
+  const onRoute = routePoints.some(function (p) {
+    return p.x > box.left && p.x < box.right && p.y > box.top && p.y < box.bottom;
+  });
+  if (onRoute) {
+    cost += COST_ROUTE;
+  }
+  return cost;
+}
+
+// 路线上每隔几个像素取一个点（屏幕坐标），用来判断标签有没有压住路线
+function routeScreenPoints() {
+  if (routeLine === null) {
+    return [];
+  }
+  const box = map.getContainer().getBoundingClientRect();
+  const latLngs = routeLine.getLayers()[0].getLatLngs();
+  const points = [];
+  for (let i = 1; i < latLngs.length; i++) {
+    const a = map.latLngToContainerPoint(latLngs[i - 1]);
+    const b = map.latLngToContainerPoint(latLngs[i]);
+    const steps = Math.max(1, Math.ceil(a.distanceTo(b) / 6));
+    for (let s = 0; s <= steps; s++) {
+      points.push({ x: box.left + a.x + (b.x - a.x) * s / steps, y: box.top + a.y + (b.y - a.y) * s / steps });
+    }
+  }
+  return points;
+}
+
+// 选中的标签最先摆（它最重要），然后是课多的楼
 function layoutClassLabels() {
   const markers = classLayer.getLayers().slice().sort(function (a, b) {
     return (b.options.selected ? 1 : 0) - (a.options.selected ? 1 : 0) ||
       b.options.classCount - a.options.classCount;
   });
-  const placed = []; // 已经放好的完整标签占的位置
-  // 选中的那栋楼的框也算"已经占了"：压在它上面的别的标签缩小，不挡住选中的楼
-  if (selectedClassPlaceId !== null && highlightedId === selectedClassPlaceId && highlightLayer) {
-    placed.push(screenBox(highlightLayer.getBounds()));
-  }
+  const outlines = classOutlineLayer.getLayers().map(function (layer) {
+    return { id: layer.options.placeId, box: screenBox(layer.getBounds()) };
+  });
+  const routePoints = routeScreenPoints();
+  const placed = []; // 已经摆好的标签
+
   markers.forEach(function (marker) {
     const label = marker.getElement() && marker.getElement().querySelector('.class-label');
     if (!label) {
       return;
     }
-    label.classList.remove('compact');
-    const box = label.getBoundingClientRect();
-    const overlaps = !marker.options.selected && placed.some(function (other) {
-      return box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top;
+    // 试遍"完整 / 缩小" × "上 / 下 / 右 / 左"，记下分最低的
+    let best = null;
+    [false, true].forEach(function (compact) {
+      if (compact && marker.options.selected) {
+        return; // 选中的标签永远完整显示
+      }
+      LABEL_POSITIONS.forEach(function (pos) {
+        if (best && best.cost === 0) {
+          return; // 已经找到完全不挡东西的位置
+        }
+        placeLabel(marker, label, pos, compact);
+        const cost = placementCost(label.getBoundingClientRect(), marker.options.placeId, placed, outlines, routePoints) +
+          (compact ? COST_COMPACT : 0);
+        if (!best || cost < best.cost) {
+          best = { pos: pos, compact: compact, cost: cost };
+        }
+      });
     });
-    if (overlaps) {
-      label.classList.add('compact');
-    } else {
-      placed.push(box);
-    }
+    placeLabel(marker, label, best.pos, best.compact);
+    placed.push(label.getBoundingClientRect());
+
+    // 选中的放最上层；其次缩小的（不会被大标签盖住）；其余按课的数量
     let z = marker.options.classCount * 100;
-    if (overlaps) {
+    if (best.compact) {
       z = 10000;
     }
     if (marker.options.selected) {
@@ -413,7 +513,7 @@ function screenBox(bounds) {
   return { left: box.left + nw.x, top: box.top + nw.y, right: box.left + se.x, bottom: box.top + se.y };
 }
 
-map.on('zoomend', layoutClassLabels);
+map.on('moveend', layoutClassLabels); // 移动、缩放结束后重新摆标签（缩放结束也会触发 moveend）
 
 function clearClassMarkers() {
   classLayer.clearLayers();

@@ -503,6 +503,14 @@ function renderMyClasses() {
   let html = `<div class="list-head"><h3>My classes <span class="count">(${count})</span></h3>` +
     renderSelectToolbar(count) + '</div>';
 
+  // 说清楚地图上有几门、为什么少了：还没确认地点的课不上地图
+  if (count > 0) {
+    const onMap = review.length === 0
+      ? `All ${count} on the map.`
+      : `${confirmed.length} of ${count} on the map · ${review.length} ${review.length === 1 ? 'needs' : 'need'} your check below.`;
+    html += `<p class="hint list-sub">${onMap}</p>`;
+  }
+
   // 正在看示例：说清楚这是示例，以及怎么换成自己的
   if (items.some(function (c) { return c.sample; })) {
     html += `<div class="sample-banner">👀 This is a <strong>sample schedule</strong> (real BU classes, mixed from a few students).
@@ -945,13 +953,11 @@ function handleListClick(event) {
     return;
   }
 
-  // 点一门课的那一行：展开 / 收起详情，并在地图上把这栋楼框出来
+  // 点一门课的那一行：展开 / 收起详情；地图移到这栋楼、框出来，这门课的标签挪到框的上方（map.js）
   if (action === 'toggle') {
     myClasses.expandedId = myClasses.expandedId === item.id ? null : item.id;
-    if (myClasses.expandedId !== null) {
-      highlightPlace(item.place);
-    }
     renderMyClasses();
+    selectClassPlace(myClasses.expandedId !== null ? item.place : null);
     return;
   }
 

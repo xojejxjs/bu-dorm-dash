@@ -574,7 +574,7 @@ main {
 /* 地图上"我的课"的标签："CAS · 3 classes"，颜色和列表里的卡片一致 */
 .class-label {
   display: inline-block;
-  transform: translate(-50%, -50%); /* 让标签的中心对准楼的位置 */
+  transform: translate(-50%, calc(-100% - 4px)); /* 标签放在楼的正上方：下边缘对准楼轮廓的上边缘，不挡住楼 */
   white-space: nowrap;
   padding: 3px 8px;
   border: 2px solid white;
@@ -596,14 +596,23 @@ main {
   vertical-align: middle;
 }
 
-/* 地图上"我的课"的标记：深色圆圈里写这栋楼有几门课 */
-/* 和别的标签重叠时：缩成一个同色小圆点，不显示文字（放大地图后会变回完整标签） */
+/* 和别的标签重叠时：缩成一个只写楼代码的小标签（比如 "CFA"），放大地图后会变回完整标签
+   以前缩成没有字的小圆点，用户数不出有几栋楼，会以为少了一门课 */
+.class-label .label-short {
+  display: none;
+}
+
 .class-label.compact {
-  width: 14px;
-  height: 14px;
-  padding: 0;
-  border-radius: 50%;
-  font-size: 0;
+  padding: 1px 5px;
+  font-size: 10px;
+}
+
+.class-label.compact .label-full {
+  display: none;
+}
+
+.class-label.compact .label-short {
+  display: inline;
 }
 
 .class-pin-wrapper {
@@ -1019,4 +1028,16 @@ button.walk-row.selected {
   position: static;
   display: block;
   margin-top: 6px;
+}
+
+/* "4 of 5 on the map · 1 needs your check"：紧贴在标题下面 */
+.list-sub {
+  margin: 2px 0 6px;
+}
+
+/* 列表里点开的那门课：地图上的标签放大一点，加一圈深色边 */
+.class-label.selected {
+  font-size: 13px;
+  padding: 4px 10px;
+  box-shadow: 0 0 0 3px var(--ink), 0 2px 8px rgba(0, 0, 0, 0.4);
 }

@@ -177,19 +177,22 @@ let highlightLayer = null;
 
 const HIGHLIGHT_STYLE = {
   color: '#1a1f71',     // 边框：深蓝（和"我的课"标签同一个颜色，表示"你选中的"）
-  weight: 3,
+  weight: 4,            // 比"我的课"每栋楼的轮廓（2）粗、填色更深，一眼看出选中的是哪栋
   fillColor: '#1a1f71',
-  fillOpacity: 0.15,
+  fillOpacity: 0.3,
   interactive: false    // 框只用来看，不接收点击，这样不会挡住下面的圆点
 };
 
 // 把某个地点所在的建筑框起来
 // 输入：一个地点对象
 // 输出：地图上出现一个按建筑形状画的深蓝框；没有轮廓数据时画一个圆圈代替
+let highlightedId = null; // 现在框着的是哪个地点
+
 function highlightPlace(place) {
   if (highlightLayer !== null) {
     map.removeLayer(highlightLayer);
   }
+  highlightedId = place.id;
 
   const shape = buildingShapes[place.id];
   if (shape) {
@@ -204,6 +207,16 @@ function highlightPlace(place) {
   highlightLayer.bringToBack(); // 放到圆点下面一层，圆点不会被框的颜色盖住
 
   pinPlace('highlight', place.id); // 框起来的地点一定要显示它的圆点
+}
+
+// 去掉框（比如在列表里收起了那门课）
+function clearHighlight() {
+  if (highlightLayer !== null) {
+    map.removeLayer(highlightLayer);
+    highlightLayer = null;
+  }
+  highlightedId = null;
+  pinPlace('highlight', null);
 }
 
 // ===== 用户输入的地址：可以拖动的大头针 =====
@@ -246,57 +259,126 @@ function clearAddressMarker(slot) {
 // 所有"我的课"标记放在一个图层组里，方便一次性清掉或重新画
 const classLayer = L.featureGroup().addTo(map);
 
-// 在地图上标出上课的楼：每栋楼一个深色圆形标记，里面的数字是在这栋楼上几门课
-// 输入：[{ place, classes: [课程, ...] }]
-// 输入：[{ place, classes, color }]，color 是这栋楼在列表和地图上共用的颜色
+// "我的课"所在的每栋楼都画出轮廓：就算两个标签挤在一起（比如 LSE 和 PRB 只隔 51 米），
+// 也能看清每栋楼在哪里、一共是几栋楼
+const classOutlineLayer = L.featureGroup().addTo(map);
+
+const CLASS_OUTLINE_STYLE = {
+  color: CLASS_COLOR,   // 和"我的课"标签同一个深蓝色
+  weight: 2,
+  fillColor: CLASS_COLOR,
+  fillOpacity: 0.12,
+  interactive: false    // 只用来看，不接收点击，不会挡住下面的圆点
+};
+
+let classBuildingsKey = '';        // 上次画的是哪些楼。楼没变（比如只是点开了一门课）就不重新缩放地图
+let selectedClassPlaceId = null;   // 列表里点开的那门课在哪栋楼
+
+// 在地图上标出上课的楼：每栋楼一个标签 "CAS · 3 classes"，并画出楼的轮廓
+// 输入：[{ place, classes, color }]，每栋楼一项
 function showClassMarkers(groups) {
   classLayer.clearLayers();
+  classOutlineLayer.clearLayers();
 
   groups.forEach(function (group) {
-    // 标签直接写清楚意思："CAS · 3 classes"，不用鼠标悬停也能看懂
+    // 1. 楼的轮廓；没有轮廓数据的（比如一段街）画一个虚线小圆
+    const shape = buildingShapes[group.place.id];
+    const outline = shape
+      ? L.polygon(shape, CLASS_OUTLINE_STYLE)
+      : L.circle([group.place.latitude, group.place.longitude],
+        Object.assign({ radius: 25, dashArray: '4 4' }, CLASS_OUTLINE_STYLE));
+    outline.addTo(classOutlineLayer);
+
+    // 2. 标签直接写清楚意思，不用鼠标悬停也能看懂
     const count = group.classes.length;
     const shortName = group.place.code || group.place.name;
     const label = `${shortName} · ${count} ${count === 1 ? 'class' : 'classes'}`;
 
     // divIcon：用一小段 HTML 当标记的图案
-    // 标签宽度随文字变化，所以不固定大小，用 CSS 把标签的中心移到楼的位置上
+    // 两种写法都放进去：完整的 "CAS · 3 classes"，和挤的时候用的短的 "CAS"（style.css 决定显示哪个）
     const icon = L.divIcon({
       className: 'class-pin-wrapper',
-      html: `<div class="class-label" style="background:${group.color}">${label}</div>`,
+      html: `<div class="class-label" style="background:${group.color}">` +
+        `<span class="label-full">${escapeHtml(label)}</span><span class="label-short">${escapeHtml(shortName)}</span></div>`,
       iconSize: [0, 0],
       iconAnchor: [0, 0]
     });
 
     // 鼠标悬停时显示：楼名 + 每门课的课号、时间、教室
     const lines = group.classes.map(function (c) {
-      return `${c.course} ${c.section} · ${c.time} · ${c.code} ${c.room}`;
+      return escapeHtml(`${c.course} ${c.section} · ${c.time} · ${c.code} ${c.room}`);
     });
-    const tooltip = `<strong>${group.place.name}</strong><br>${lines.join('<br>')}`;
+    const tooltip = `<strong>${escapeHtml(group.place.name)}</strong><br>${lines.join('<br>')}`;
 
+    // 标签放在楼的正上方（轮廓的上边缘），不压在楼上，轮廓永远看得见
     // classCount：标签挤在一起时，课多的楼优先显示完整标签
-    L.marker([group.place.latitude, group.place.longitude], { icon: icon, classCount: count, zIndexOffset: count * 100 })
+    const bounds = outline.getBounds();
+    L.marker([bounds.getNorth(), bounds.getCenter().lng], {
+      icon: icon,
+      placeId: group.place.id,
+      classCount: count,
+      zIndexOffset: count * 100
+    })
       .bindTooltip(tooltip)
       .on('click', function () {
         highlightPlace(group.place);
       })
       .addTo(classLayer);
   });
+  classOutlineLayer.bringToBack();
 
-  // 缩放地图，让所有上课的楼都在视野里
-  if (groups.length > 0) {
+  // 上课的楼变了（导入、确认、删除）才缩放地图，让所有楼都在视野里
+  // 只是点开、收起一门课时不缩放，不然地图会跳回去，刚移过去的楼又看不到了
+  const key = groups.map(function (g) { return g.place.id; }).sort().join(',');
+  if (groups.length > 0 && key !== classBuildingsKey) {
     map.fitBounds(classLayer.getBounds(), { padding: [60, 60], maxZoom: 17 });
   }
+  classBuildingsKey = key;
+
+  applyClassSelection();
   layoutClassLabels();
 }
 
-// 几栋楼离得很近（比如 CAS、CDS、MCS），或者手机屏幕小时，标签会叠在一起看不清
-// 办法：课多的楼先放完整标签；后面的如果会和已经放好的标签重叠，就缩成一个同色的小圆点
-// 放大地图后楼之间隔开了，圆点会自动变回完整标签。点圆点或者鼠标悬停，仍然能看到这栋楼的课
+// 列表里点开一门课：地图移到这栋楼、把楼框出来（粗边），这门课的标签加一圈深色边
+// 输入：一个地点；传 null 表示收起了，取消选中
+function selectClassPlace(place) {
+  selectedClassPlaceId = place ? place.id : null;
+  if (place) {
+    highlightPlace(place);
+    map.fitBounds(highlightLayer.getBounds(), { padding: [90, 90], maxZoom: 17 });
+  } else {
+    clearHighlight();
+  }
+  applyClassSelection();
+  layoutClassLabels();
+}
+
+// 按现在选中的楼，标出选中的标签（重新画标签以后也要再标一次）
+function applyClassSelection() {
+  classLayer.getLayers().forEach(function (marker) {
+    // 只有框着的正好是选中的那栋楼时才算选中（用户之后可能点了别的楼，框已经换了）
+    const selected = selectedClassPlaceId !== null && highlightedId === selectedClassPlaceId &&
+      marker.options.placeId === selectedClassPlaceId;
+    marker.options.selected = selected;
+    const label = marker.getElement() && marker.getElement().querySelector('.class-label');
+    if (label) {
+      label.classList.toggle('selected', selected);
+    }
+  });
+}
+
+// 标签重叠时：后放的缩成只写楼代码的小标签（放大地图后会变回完整标签）
+// 选中的标签最先放，永远完整显示；缩小的标签放到最上层，不会被别的标签盖住
 function layoutClassLabels() {
   const markers = classLayer.getLayers().slice().sort(function (a, b) {
-    return b.options.classCount - a.options.classCount;
+    return (b.options.selected ? 1 : 0) - (a.options.selected ? 1 : 0) ||
+      b.options.classCount - a.options.classCount;
   });
   const placed = []; // 已经放好的完整标签占的位置
+  // 选中的那栋楼的框也算"已经占了"：压在它上面的别的标签缩小，不挡住选中的楼
+  if (selectedClassPlaceId !== null && highlightedId === selectedClassPlaceId && highlightLayer) {
+    placed.push(screenBox(highlightLayer.getBounds()));
+  }
   markers.forEach(function (marker) {
     const label = marker.getElement() && marker.getElement().querySelector('.class-label');
     if (!label) {
@@ -304,7 +386,7 @@ function layoutClassLabels() {
     }
     label.classList.remove('compact');
     const box = label.getBoundingClientRect();
-    const overlaps = placed.some(function (other) {
+    const overlaps = !marker.options.selected && placed.some(function (other) {
       return box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top;
     });
     if (overlaps) {
@@ -312,15 +394,31 @@ function layoutClassLabels() {
     } else {
       placed.push(box);
     }
+    let z = marker.options.classCount * 100;
+    if (overlaps) {
+      z = 10000;
+    }
+    if (marker.options.selected) {
+      z = 20000;
+    }
+    marker.setZIndexOffset(z);
   });
 }
 
-// 缩放结束后重新排一次（放大时楼之间的距离变大，重叠可能消失）
+// 地图上一块经纬度范围，换成它在屏幕上的位置（和 getBoundingClientRect 同一种坐标，方便比较是否重叠）
+function screenBox(bounds) {
+  const box = map.getContainer().getBoundingClientRect();
+  const nw = map.latLngToContainerPoint(bounds.getNorthWest());
+  const se = map.latLngToContainerPoint(bounds.getSouthEast());
+  return { left: box.left + nw.x, top: box.top + nw.y, right: box.left + se.x, bottom: box.top + se.y };
+}
+
 map.on('zoomend', layoutClassLabels);
 
-// 清掉"我的课"标记
 function clearClassMarkers() {
   classLayer.clearLayers();
+  classOutlineLayer.clearLayers();
+  classBuildingsKey = ''; // 下次有课时重新缩放
 }
 
 // 确认 / 编辑时的"预览"标记：空心、虚线、带问号，表示"还没确认"

@@ -498,8 +498,9 @@ function renderMyClasses() {
   // 课间步行分析（my-week.js）也跟着重新算
   renderClassWalks();
 
-  // 有好几份课表时，最上面的切换栏（schedules.js）
+  // 有好几份课表时，最上面的切换栏（schedules.js）和对比表（compare.js）
   renderScheduleSwitcher();
+  renderCompare();
 
   // 还没选好的导入卡片：课表名字可能变了（比如换了一份课表），跟着更新
   renderImportChoice();
@@ -1398,8 +1399,9 @@ function initMyClasses(placeIndex) {
   // 用户以前自己加过的地点：先放回索引里，下面读回的课才找得到它们的楼
   loadCustomPlaces(placeIndex);
 
-  // 课表切换栏（schedules.js）
+  // 课表切换栏（schedules.js）、对比表（compare.js）
   initScheduleSwitcher();
+  initCompare();
 
   // 上次存在这个浏览器里的课表：读回来直接显示，不用再上传
   const savedSchedules = loadSavedSchedules(placeIndex);

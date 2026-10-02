@@ -175,7 +175,10 @@ function renderScheduleSwitcher() {
         data-schedule="${schedule.id}">${name}</button>`;
     }
   });
-  html += '<button type="button" class="schedule-chip schedule-new" data-action="new-schedule">+ New</button></div>';
+  html += '<button type="button" class="schedule-chip schedule-new" data-action="new-schedule">+ New</button>';
+  // 对比几份课表（compare.js）：再点一次收起
+  html += `<button type="button" class="link-button compare-toggle" data-action="toggle-compare"
+    aria-expanded="${Boolean(myClasses.compareOpen)}">${myClasses.compareOpen ? 'Hide compare' : 'Compare'}</button></div>`;
 
   if (myClasses.scheduleMenuOpen) {
     html += `<div class="schedule-menu">
@@ -213,6 +216,10 @@ function initScheduleSwitcher() {
       deleteSchedule(myClasses.activeId);
     } else if (action === 'new-schedule') {
       createSchedule(nextScheduleName());
+    } else if (action === 'toggle-compare') {
+      myClasses.compareOpen = !myClasses.compareOpen;
+      renderScheduleSwitcher();
+      renderCompare();
     }
   });
   // 改名时按回车 = Save

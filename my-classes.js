@@ -9,7 +9,9 @@
 // 原则：只有"读到的"可以直接上地图；"猜的"一定要用户确认。任何操作都能 Edit、Undo、Restore
 
 const myClasses = {
-  items: [],        // 所有课
+  items: [],        // 当前这一份课表里的所有课（页面上的列表、地图、课间步行、Route check 都只看它）
+  schedules: [{ id: 1, name: 'My schedule', items: [] }], // 所有课表；当前那一份的课以 items 为准（schedules.js）
+  activeId: 1,      // 当前是哪一份课表
   placeIndex: null, // 地点搜索索引（app.js 建好后传进来）
   openId: null,     // 当前展开（正在确认 / 编辑）的是哪门课
   expandedId: null, // 列表里点开看详情的是哪门课（一次只开一门）
@@ -157,12 +159,21 @@ function savedToClass(s, placeIndex) {
   };
 }
 
+// 存的格式（version 2）：{ version: 2, activeId, schedules: [{ id, name, items: [存下来的课] }] }
 function saveMyClasses() {
+  syncActiveSchedule();
   try {
-    if (myClasses.items.length === 0) {
+    const empty = myClasses.schedules.length === 1 && myClasses.items.length === 0;
+    if (empty) {
       localStorage.removeItem(SAVED_CLASSES_KEY);
     } else {
-      localStorage.setItem(SAVED_CLASSES_KEY, JSON.stringify({ version: 1, items: myClasses.items.map(classToSaved) }));
+      localStorage.setItem(SAVED_CLASSES_KEY, JSON.stringify({
+        version: 2,
+        activeId: myClasses.activeId,
+        schedules: myClasses.schedules.map(function (schedule) {
+          return { id: schedule.id, name: schedule.name, items: schedule.items.map(classToSaved) };
+        })
+      }));
     }
   } catch (error) {
     // 无痕模式、浏览器禁止存储时会出错：存不了也不影响使用，只是下次要重新导入
@@ -170,18 +181,42 @@ function saveMyClasses() {
   }
 }
 
-// 读回上次存的课；没有或读不懂时返回空数组
-function loadSavedClasses(placeIndex) {
+// 读回上次存的所有课表
+// 输出：{ schedules: [{ id, name, items }], activeId }；没有或读不懂时返回 null
+// 以前（只有一份课表时）存的是 { version: 1, items }：自动变成一份叫 "My schedule" 的课表，用户什么都不用做
+function loadSavedSchedules(placeIndex) {
   try {
     const saved = JSON.parse(localStorage.getItem(SAVED_CLASSES_KEY));
-    if (!saved || !Array.isArray(saved.items)) {
-      return [];
+    if (!saved) {
+      return null;
     }
-    return saved.items.map(function (s) { return savedToClass(s, placeIndex); });
+    const toClasses = function (items) {
+      return (Array.isArray(items) ? items : []).map(function (s) { return savedToClass(s, placeIndex); });
+    };
+    if (Array.isArray(saved.schedules) && saved.schedules.length > 0) {
+      const schedules = saved.schedules.map(function (schedule, i) {
+        return { id: Number(schedule.id) || i + 1, name: String(schedule.name || 'My schedule'), items: toClasses(schedule.items) };
+      });
+      const active = schedules.find(function (schedule) { return schedule.id === saved.activeId; }) || schedules[0];
+      return { schedules: schedules, activeId: active.id };
+    }
+    if (Array.isArray(saved.items)) {
+      return { schedules: [{ id: 1, name: 'My schedule', items: toClasses(saved.items) }], activeId: 1 };
+    }
+    return null;
   } catch (error) {
     console.log("Couldn't read saved classes:", error);
-    return [];
+    return null;
   }
+}
+
+// 当前那一份课表的课以 myClasses.items 为准；存储、切换之前，先把它写回 schedules 里
+function syncActiveSchedule() {
+  activeSchedule().items = myClasses.items;
+}
+
+function activeSchedule() {
+  return myClasses.schedules.find(function (schedule) { return schedule.id === myClasses.activeId; });
 }
 
 // ===== 用户自己输入的地址（数据里还没有的楼） =====
@@ -454,6 +489,9 @@ function renderMyClasses() {
 
   // 课间步行分析（my-week.js）也跟着重新算
   renderClassWalks();
+
+  // 有好几份课表时，最上面的切换栏（schedules.js）
+  renderScheduleSwitcher();
 
   const items = myClasses.items;
   const list = document.getElementById('schedule-list');
@@ -1032,7 +1070,12 @@ function undoLastChange() {
   if (!myClasses.undo) {
     return;
   }
-  myClasses.items = myClasses.undo;
+  // undo 有两种：一份课的旧样子（大多数操作），或者一个"怎么恢复"的函数（比如删掉了一整份课表）
+  if (typeof myClasses.undo === 'function') {
+    myClasses.undo();
+  } else {
+    myClasses.items = myClasses.undo;
+  }
   myClasses.undo = null;
   myClasses.openId = null;
   document.getElementById('class-toast').hidden = true;
@@ -1197,9 +1240,23 @@ function initMyClasses(placeIndex) {
   // 用户以前自己加过的地点：先放回索引里，下面读回的课才找得到它们的楼
   loadCustomPlaces(placeIndex);
 
-  // 上次存在这个浏览器里的课：读回来直接显示，不用再上传
-  const saved = loadSavedClasses(placeIndex);
-  if (saved.length > 0) {
+  // 课表切换栏（schedules.js）
+  initScheduleSwitcher();
+
+  // 上次存在这个浏览器里的课表：读回来直接显示，不用再上传
+  const savedSchedules = loadSavedSchedules(placeIndex);
+  if (savedSchedules) {
+    // 不是当前这份课表里的旧版示例课：直接去掉（当前这份的在下面换成新版）
+    savedSchedules.schedules.forEach(function (schedule) {
+      if (schedule.id !== savedSchedules.activeId && hasOutdatedSample(schedule.items)) {
+        schedule.items = schedule.items.filter(function (c) { return !c.sample; });
+      }
+    });
+    myClasses.schedules = savedSchedules.schedules;
+    myClasses.activeId = savedSchedules.activeId;
+  }
+  const saved = activeSchedule().items;
+  if (savedSchedules && (saved.length > 0 || myClasses.schedules.length > 1)) {
     myClasses.items = saved;
     renderMyClasses();
     // 以前试过示例、存下来的是旧版示例课：换成现在的示例（用户自己的课不动）
@@ -1210,8 +1267,10 @@ function initMyClasses(placeIndex) {
     }
     // 按现在列表里的课数（示例可能刚换过，数量会变）
     const count = myClasses.items.length;
-    const status = document.getElementById('schedule-status');
-    status.textContent = `Welcome back: loaded ${count} saved ${count === 1 ? 'class' : 'classes'}. ` + status.textContent;
+    if (count > 0) {
+      const status = document.getElementById('schedule-status');
+      status.textContent = `Welcome back: loaded ${count} saved ${count === 1 ? 'class' : 'classes'}. ` + status.textContent;
+    }
   }
 }
 

@@ -1,0 +1,183 @@
+// schedules.js：多份课表（比如自己的课表和 Plan B，或者室友的课表）
+//
+// 做法：myClasses.items 永远只放"当前这一份"课表的课，其他几份存在 myClasses.schedules 里
+// 切换时两边交换一下。列表、地图、课间步行、Route check 读的都是 myClasses.items，
+// 所以它们不用改，自动"只看当前这一份"
+//
+// 只有一份课表时，切换栏完全不显示：大多数人根本看不到这个功能，界面保持简单
+
+// 新课表的默认名字：Schedule 2、Schedule 3……（跳过已经用过的名字）
+function nextScheduleName() {
+  const names = myClasses.schedules.map(function (schedule) { return schedule.name; });
+  let n = 2;
+  while (names.includes('Schedule ' + n)) {
+    n++;
+  }
+  return 'Schedule ' + n;
+}
+
+// 切换课表、新建、删除以后：收起展开的东西、清掉撤销（不然 Undo 会把上一份课表的课放进这一份）
+function resetScheduleView() {
+  myClasses.openId = null;
+  myClasses.expandedId = null;
+  myClasses.selecting = false;
+  myClasses.selected = new Set();
+  myClasses.undo = null;
+  myClasses.scheduleMenuOpen = false;
+  document.getElementById('class-toast').hidden = true;
+  clearClassPreview();
+  selectClassPlace(null);
+}
+
+// 换到另一份课表
+// 输入：课表的 id
+function switchSchedule(id) {
+  const target = myClasses.schedules.find(function (schedule) { return schedule.id === id; });
+  if (!target || id === myClasses.activeId) {
+    return;
+  }
+  syncActiveSchedule(); // 先把当前这一份的课存回去
+  myClasses.activeId = id;
+  myClasses.items = target.items;
+  resetScheduleView();
+  renderMyClasses();
+}
+
+// 新建一份空的课表，并换过去（"添加课表"会自动展开，可以直接导入）
+// 输入：名字
+// 输出：新的课表
+function createSchedule(name) {
+  syncActiveSchedule();
+  const id = Math.max.apply(null, myClasses.schedules.map(function (schedule) { return schedule.id; })) + 1;
+  const schedule = { id: id, name: name, items: [] };
+  myClasses.schedules.push(schedule);
+  myClasses.activeId = id;
+  myClasses.items = schedule.items;
+  resetScheduleView();
+  renderMyClasses();
+  return schedule;
+}
+
+// 改名：空的名字不接受，太长的截掉
+function renameSchedule(id, name) {
+  const schedule = myClasses.schedules.find(function (s) { return s.id === id; });
+  const clean = name.trim().slice(0, 40);
+  if (schedule && clean) {
+    schedule.name = clean;
+  }
+  myClasses.scheduleMenuOpen = false;
+  renderMyClasses();
+}
+
+// 删掉一份课表（至少留一份）；8 秒内可以 Undo
+function deleteSchedule(id) {
+  const schedules = myClasses.schedules;
+  const index = schedules.findIndex(function (s) { return s.id === id; });
+  if (index === -1 || schedules.length <= 1) {
+    return;
+  }
+  syncActiveSchedule();
+  const removed = schedules[index];
+  const wasActive = id === myClasses.activeId;
+  schedules.splice(index, 1);
+  if (wasActive) {
+    // 删的是正在看的那一份：换到它前面一份（没有就是后面一份）
+    const next = schedules[Math.max(0, index - 1)];
+    myClasses.activeId = next.id;
+    myClasses.items = next.items;
+  }
+  resetScheduleView();
+
+  // 撤销：放回原来的位置；删之前正在看它的话，也换回去
+  myClasses.undo = function () {
+    syncActiveSchedule();
+    schedules.splice(index, 0, removed);
+    if (wasActive) {
+      myClasses.activeId = removed.id;
+      myClasses.items = removed.items;
+    }
+  };
+  renderMyClasses();
+  showToast(`Deleted "${removed.name}"`);
+}
+
+// ===== 显示 =====
+
+// My week 最上面的切换栏：[My schedule ▾] [Plan B] + New
+// renderMyClasses() 每次都会调用它
+function renderScheduleSwitcher() {
+  const box = document.getElementById('schedule-switcher');
+
+  // "添加课表"里的"另开一份课表"：当前这一份已经有课时才显示（还是空的，直接往里加就好）
+  document.getElementById('new-schedule-row').hidden = myClasses.items.length === 0;
+
+  if (myClasses.schedules.length <= 1) {
+    box.innerHTML = '';
+    return;
+  }
+
+  let html = '<div class="schedule-chips">';
+  myClasses.schedules.forEach(function (schedule) {
+    const name = escapeHtml(schedule.name);
+    if (schedule.id === myClasses.activeId) {
+      // 当前这一份：点一下展开"改名 / 删除"
+      html += `<button type="button" class="schedule-chip" aria-pressed="true" data-action="schedule-menu"
+        aria-expanded="${Boolean(myClasses.scheduleMenuOpen)}">${name} ▾</button>`;
+    } else {
+      html += `<button type="button" class="schedule-chip" aria-pressed="false" data-action="switch-schedule"
+        data-schedule="${schedule.id}">${name}</button>`;
+    }
+  });
+  html += '<button type="button" class="schedule-chip schedule-new" data-action="new-schedule">+ New</button></div>';
+
+  if (myClasses.scheduleMenuOpen) {
+    html += `<div class="schedule-menu">
+      <label for="schedule-name">Name</label>
+      <div class="schedule-menu-row">
+        <input type="text" id="schedule-name" maxlength="40" value="${escapeAttr(activeSchedule().name)}">
+        <button type="button" class="small-button" data-action="rename-schedule">Save</button>
+      </div>
+      <button type="button" class="link-button schedule-delete" data-action="delete-schedule">Delete this schedule</button>
+    </div>`;
+  }
+  box.innerHTML = html;
+}
+
+// 只需要绑定一次：切换栏里的内容每次都会重画，但外面的容器不变（事件委托）
+function initScheduleSwitcher() {
+  const box = document.getElementById('schedule-switcher');
+  box.addEventListener('click', function (event) {
+    const button = event.target.closest('button[data-action]');
+    if (!button) {
+      return;
+    }
+    const action = button.dataset.action;
+    if (action === 'switch-schedule') {
+      switchSchedule(Number(button.dataset.schedule));
+    } else if (action === 'schedule-menu') {
+      myClasses.scheduleMenuOpen = !myClasses.scheduleMenuOpen;
+      renderScheduleSwitcher();
+      if (myClasses.scheduleMenuOpen) {
+        document.getElementById('schedule-name').focus();
+      }
+    } else if (action === 'rename-schedule') {
+      renameSchedule(myClasses.activeId, document.getElementById('schedule-name').value);
+    } else if (action === 'delete-schedule') {
+      deleteSchedule(myClasses.activeId);
+    } else if (action === 'new-schedule') {
+      createSchedule(nextScheduleName());
+    }
+  });
+  // 改名时按回车 = Save
+  box.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' && event.target.id === 'schedule-name') {
+      renameSchedule(myClasses.activeId, event.target.value);
+    }
+  });
+  // "添加课表"里的"另开一份课表"
+  document.getElementById('new-schedule-button').addEventListener('click', function () {
+    createSchedule(nextScheduleName());
+  });
+}
+
+console.log('schedules.js loaded');

@@ -9,7 +9,7 @@
   <!-- Leaflet 的样式文件，必须引入，否则地图显示会错乱 -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <link rel="stylesheet" href="style.css?v=2026-10-02m" />
+  <link rel="stylesheet" href="style.css?v=2026-10-02n" />
 </head>
 <body>
 
@@ -35,6 +35,9 @@
       <!-- 标签页 1：My week —— 先给结论（课间步行），再是我的课，最后是添加课表 -->
       <div id="tab-week" class="tab-panel" role="tabpanel" aria-labelledby="tab-btn-week">
         <section id="schedule-panel">
+          <!-- 有好几份课表时（比如自己的和 Plan B）：切换栏；只有一份时是空的（schedules.js） -->
+          <div id="schedule-switcher"></div>
+
           <!-- 课间步行分析：每天连着上的两节课，走过去来不来得及（my-week.js） -->
           <div id="class-walks"></div>
 
@@ -55,6 +58,12 @@
             <p class="sample-row" id="sample-row">
               No schedule handy?
               <button type="button" class="small-button" id="sample-button">Try a sample schedule</button>
+            </p>
+
+            <!-- 想比较另一种选课方案、或者帮室友看：另开一份课表，和现在这份互不影响 -->
+            <p class="sample-row" id="new-schedule-row" hidden>
+              Planning another version, like a Plan B?
+              <button type="button" class="small-button" id="new-schedule-button">+ Start a new schedule</button>
             </p>
 
             <!-- 识别不准时的备用方式：直接粘贴课表文字 -->
@@ -159,19 +168,20 @@
 
   <!-- 我们自己的 JS，顺序很重要：被别人用的文件要先加载 -->
   <!-- ?v=版本号：每次更新网站时改这个号码，浏览器就会下载新文件，而不是继续用缓存里的旧文件 -->
-  <script>const APP_VERSION = '2026-10-02m';</script>
-  <script src="distance.js?v=2026-10-02m"></script>
-  <script src="geocode.js?v=2026-10-02m"></script>
-  <script src="route-api.js?v=2026-10-02m"></script>
-  <script src="schedule.js?v=2026-10-02m"></script>
-  <script src="schedule-import.js?v=2026-10-02m"></script>
-  <script src="course-guess.js?v=2026-10-02m"></script>
-  <script src="my-classes.js?v=2026-10-02m"></script>
-  <script src="my-week.js?v=2026-10-02m"></script>
-  <script src="map.js?v=2026-10-02m"></script>
-  <script src="tabs.js?v=2026-10-02m"></script>
-  <script src="app.js?v=2026-10-02m"></script>
-  <script src="analytics.js?v=2026-10-02m"></script>
+  <script>const APP_VERSION = '2026-10-02n';</script>
+  <script src="distance.js?v=2026-10-02n"></script>
+  <script src="geocode.js?v=2026-10-02n"></script>
+  <script src="route-api.js?v=2026-10-02n"></script>
+  <script src="schedule.js?v=2026-10-02n"></script>
+  <script src="schedule-import.js?v=2026-10-02n"></script>
+  <script src="course-guess.js?v=2026-10-02n"></script>
+  <script src="my-classes.js?v=2026-10-02n"></script>
+  <script src="my-week.js?v=2026-10-02n"></script>
+  <script src="schedules.js?v=2026-10-02n"></script>
+  <script src="map.js?v=2026-10-02n"></script>
+  <script src="tabs.js?v=2026-10-02n"></script>
+  <script src="app.js?v=2026-10-02n"></script>
+  <script src="analytics.js?v=2026-10-02n"></script>
 
   <!-- 访问统计（GoatCounter）：不用 cookie；只在线上网站统计，本地测试不算 -->
   <script data-goatcounter="https://xojejxjs.goatcounter.com/count"

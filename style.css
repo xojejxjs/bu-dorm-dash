@@ -1048,3 +1048,59 @@ button.walk-row.selected {
 .class-label.pos-below { transform: translate(-50%, 4px); }
 .class-label.pos-right { transform: translate(4px, -50%); }
 .class-label.pos-left  { transform: translate(calc(-100% - 4px), -50%); }
+
+/* ===== 多份课表的切换栏（schedules.js） ===== */
+.schedule-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.schedule-chip {
+  padding: 5px 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: white;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* 正在看的那一份：深色底 */
+.schedule-chip[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: white;
+  font-weight: bold;
+}
+
+.schedule-chip.schedule-new {
+  border-style: dashed;
+  color: var(--action);
+}
+
+/* 改名 / 删除 */
+.schedule-menu {
+  margin: -4px 0 12px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 13px;
+}
+
+.schedule-menu-row {
+  display: flex;
+  gap: 6px;
+  margin: 4px 0 8px;
+}
+
+#sidebar .schedule-menu-row input {
+  flex: 1;
+  width: auto;
+}
+
+.schedule-delete {
+  color: var(--late);
+}

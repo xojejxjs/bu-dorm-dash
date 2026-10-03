@@ -33,10 +33,14 @@ function findClassWalks(items) {
 
   // 1. 每天把课按开始时间排好，取相邻的两节
   const walks = [];
+  const singleDays = []; // 只有 1 节课的日子：那天没有路可走，要告诉用户
   DAY_ORDER.forEach(function (day) {
     const today = checkable
       .filter(function (c) { return c.days.includes(day); })
       .sort(function (a, b) { return a.start - b.start || a.end - b.end; });
+    if (today.length === 1) {
+      singleDays.push(day);
+    }
 
     for (let i = 1; i < today.length; i++) {
       const prev = today[i - 1];
@@ -62,7 +66,7 @@ function findClassWalks(items) {
       a.from.end - b.from.end;
   });
 
-  return { walks: walks, checked: checkable, unchecked: unchecked };
+  return { walks: walks, checked: checkable, unchecked: unchecked, singleDays: singleDays };
 }
 
 // 判断一对相邻的课属于哪种情况
@@ -122,7 +126,10 @@ function renderClassWalks() {
     html += renderWalkSummary(urgent);
     html += `<p class="hint">Each day, from one class to the next. 🟢 means at least ${BUFFER_MINUTES} min to spare.</p>`;
   } else if (result.checked.length > 0) {
-    html += '<p class="hint">No back-to-back classes on the same day, so there are no walks to check.</p>';
+    // 每天都只有 1 节课时，下面"只有 1 节课"那一行已经说清楚了，这句就不用了
+    if (result.singleDays.length === 0) {
+      html += '<p class="hint">No back-to-back classes on the same day, so there are no walks to check.</p>';
+    }
   } else {
     html += '<p class="hint">Confirm where your classes are above, then the walks between them show up here.</p>';
   }
@@ -139,7 +146,12 @@ function renderClassWalks() {
       <ul class="walk-list">${long.map(renderWalkRow).join('')}</ul></details>`;
   }
 
-  // 3. 没法检查的课：说出来，不然用户会以为"没显示 = 没问题"
+  // 3. 只有 1 节课的日子：说出来，不然用户会以为少算了 walk
+  if (result.singleDays.length > 0) {
+    html += `<p class="hint walk-single">${result.singleDays.join(', ')}: only 1 class that day, so nothing to walk.</p>`;
+  }
+
+  // 4. 没法检查的课：说出来，不然用户会以为"没显示 = 没问题"
   if (result.unchecked.length > 0) {
     const names = result.unchecked.map(function (c) {
       return `${escapeHtml(c.title)} (${uncheckedReason(c)})`;

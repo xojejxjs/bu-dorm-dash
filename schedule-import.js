@@ -230,7 +230,7 @@ function parseIcs(text, placeIndex, knownCourses) {
   });
 
   if (events.length > 0 && meetings.length === 0) {
-    throw new Error("This calendar file has no events with a BU course number (like CASMA 123).");
+    throw new Error("This calendar file has no events with a course number (like CASMA 123).");
   }
   return buildResult(meetings);
 }

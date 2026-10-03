@@ -74,7 +74,7 @@ function showDormInfo(dorm) {
   // 官方页面：有才显示
   let officialHtml = '';
   if (dorm.official_url) {
-    officialHtml = `<p><a href="${dorm.official_url}" target="_blank">Official BU Housing page →</a></p>`;
+    officialHtml = `<p><a href="${dorm.official_url}" target="_blank">Official housing page →</a></p>`;
   }
 
   // 3. 拼出一段 HTML，替换掉元素原来的内容
@@ -425,7 +425,7 @@ async function updateRoute(placeIndex, allowPartial) {
       return box.value.trim() !== '' && [fromPlace, toPlace][i] === undefined;
     });
     if (missing) {
-      showRouteMessage(`Can't find "${missing.value}". Try a dorm or building name, or a street address near BU.`);
+      showRouteMessage(`Can't find "${missing.value}". Try a dorm or building name, or a street address near campus.`);
       return;
     }
   }

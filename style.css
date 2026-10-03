@@ -1316,3 +1316,103 @@ button.walk-row.selected {
 .class-label.route-note.pos-below::before {
   border-bottom-color: var(--mine);
 }
+
+/* ===== 添加课表：主推 .ics（三步） ===== */
+
+/* 屏幕上看不见，但读屏软件、键盘还能用（真正的上传框、按钮的文字说明） */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ics-guide {
+  margin: 8px 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--action);
+  border-radius: 8px;
+  background: var(--action-bg);
+}
+
+.ics-guide-title {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--ink);
+}
+
+.ics-steps {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.ics-steps li {
+  margin-bottom: 4px;
+}
+
+/* 第 2 步里画一个和 BU 网站上长得差不多的按钮，用户到了 MyBU 一眼认得出要点哪个 */
+.bu-button {
+  display: inline-block;
+  padding: 0 8px;
+  border: 1px solid #9aa3ad;
+  border-radius: 4px;
+  background: white;
+  color: #333;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+/* 第 3 步的大按钮（其实是 label，点了打开上传框） */
+#sidebar label.file-button {
+  display: inline-block;
+  margin: 4px 0 0;
+  padding: 8px 14px;
+  border-radius: 6px;
+  background: var(--action);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+#sidebar label.file-button:hover {
+  background: #0f4799;
+}
+
+/* 用键盘 Tab 到藏起来的上传框时，大按钮显示焦点框 */
+#schedule-file:focus-visible + .ics-guide .file-button {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* "choose files"：看起来像链接 */
+#sidebar label.file-link {
+  display: inline;
+  margin: 0;
+  font-size: inherit;
+  color: var(--action);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.other-files {
+  margin-bottom: 2px;
+}
+
+/* 侧边栏里的 "#sidebar input"（带 id，优先级高）会把宽度改成 100%，这里再写一次，保证真的藏起来 */
+#sidebar .visually-hidden {
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+}

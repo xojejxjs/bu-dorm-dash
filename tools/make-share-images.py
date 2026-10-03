@@ -34,8 +34,8 @@ img = Image.new('RGB', (W, H), 'white')
 d = ImageDraw.Draw(img)
 d.rectangle([0, 0, W, 10], fill=RED)
 img.paste(icon(88), (70, 80), icon(88))
-d.text((175, 88), 'SemesterMap', font=font(64, True), fill=RED)
-d.text((72, 210), 'Your semester on a map', font=font(40, True), fill=INK)
+d.text((175, 88), 'WalkMyWeek', font=font(64, True), fill=RED)
+d.text((72, 210), 'Your week on a map', font=font(40, True), fill=INK)
 lines = ['See where your classes are', 'Check if you can make it between classes', 'Find a dorm close to your classes']
 for i, t in enumerate(lines):
     y = 290 + i * 62

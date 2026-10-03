@@ -38,6 +38,22 @@ function escapeAttr(text) {
   return escapeHtml(text).replace(/"/g, '&quot;');
 }
 
+// 记一次匿名统计（analytics.js）。只传事件名，绝不传课表内容
+// analytics.js 没加载（比如被浏览器插件挡住）时什么都不做，不会让网站出错
+function logEvent(name) {
+  if (typeof trackEvent === 'function') {
+    trackEvent(name);
+  }
+}
+
+// 课程数量 → 区间（统计用）。只记区间，不记具体数字，更看不出是哪几门课
+function classCountBucket(n) {
+  if (n <= 3) {
+    return '1-3';
+  }
+  return n <= 6 ? '4-6' : '7plus';
+}
+
 // ===== 在 Route check 里用"我的课"当起点 / 终点 =====
 
 // 一门课在 From / To 候选列表里显示的名字，比如 "Calculus 1 (CASMA 123 DIS)"
@@ -656,6 +672,7 @@ function renderCard(c) {
 // 在地图上点了"我的课"的一栋楼：切到 My week，列表里在这栋楼上的课都标出来，滚过去
 // 这栋楼只有一门课时直接展开；有好几门时都标出来，用户自己点要看的那一门
 function showClassesAt(place) {
+  logEvent('map-building');
   showTab('week');
   const here = myClasses.items.filter(function (c) {
     return c.status === 'confirmed' && c.place && c.place.id === place.id;
@@ -664,10 +681,14 @@ function showClassesAt(place) {
   myClasses.expandedId = here.length === 1 ? here[0].id : null;
   renderMyClasses();
   selectClassPlace(place);
-  const first = document.querySelector('#schedule-list .class-row.map-picked');
-  if (first) {
-    first.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
+  // 滚到这门课：直接跳过去（平滑滚动会被紧接着的地图移动打断）；nearest：刚好露出来就行，手机上地图还能看到一部分
+  // 等这一轮地图、列表更新完再滚（放在 setTimeout 里），不然会被打断
+  setTimeout(function () {
+    const first = document.querySelector('#schedule-list .class-row.map-picked');
+    if (first) {
+      first.scrollIntoView({ block: 'nearest' });
+    }
+  }, 0);
 }
 
 // 已经确定的课：收起时只有一行（课名、楼、什么时候），点一下展开看详情
@@ -1173,6 +1194,7 @@ async function handleScheduleFiles(files) {
 
   // 读完了："Reading …" 这类进度提示换成出错的原因；都读成功了就清空
   status.textContent = errors.join(' ');
+  errors.forEach(function () { logEvent('import-error'); });
   if (results.length > 0) {
     const source = files.length === 1 ? `"${files[0].name}"` : `${files.length} files`;
     offerImport(results, source);
@@ -1189,6 +1211,8 @@ async function handleScheduleFiles(files) {
 // 输入：[{ located, unlocated }]（每个文件一份）、给用户看的来源（比如 '"Fall 2026 calendar.ics"'）
 function offerImport(results, source) {
   const found = [].concat.apply([], results.map(function (r) { return r.located.concat(r.unlocated); }));
+  // 统计：读出了几门课（只记区间）
+  logEvent(found.length === 0 ? 'import-empty' : 'import-ok-' + classCountBucket(found.length));
   const hasOwnClasses = myClasses.items.some(function (c) { return !c.sample; });
   if (found.length === 0 || !hasOwnClasses) {
     applyImport(results, 'add', '');
@@ -1201,6 +1225,7 @@ function offerImport(results, source) {
   // 全都已经有了（比如同一个文件又传了一次）：没有新东西，不用问，问了反而容易多出一份一样的课表
   // 还是照常合并一遍：文件里可能有原来没读到的教室、时间，可以补上
   if (already === found.length) {
+    logEvent('import-all-already');
     if (applyImport(results, 'add', '') > 0) {
       return; // 补上了地点：已经有 "Updated N classes… Undo" 的提示
     }
@@ -1289,10 +1314,12 @@ function handleImportChoiceClick(event) {
   myClasses.pendingImport = null;
   if (button.dataset.action === 'import-done') {
     const target = document.querySelector('input[name="import-target"]:checked').value;
+    logEvent('import-choice-' + target);
     const name = document.getElementById('import-name').value.trim().slice(0, 40) || nextScheduleName();
     renderImportChoice();
     applyImport(pending.results, target, name);
   } else {
+    logEvent('import-choice-cancel');
     renderImportChoice();
     document.getElementById('schedule-status').textContent = 'Nothing was added.';
   }
@@ -1438,6 +1465,7 @@ function initMyClasses(placeIndex) {
   }
   const saved = activeSchedule().items;
   if (savedSchedules && (saved.length > 0 || myClasses.schedules.length > 1)) {
+    logEvent('load-saved'); // 这个浏览器里存着课：相当于"回来的用户"（不知道是谁）
     myClasses.items = saved;
     renderMyClasses();
     // 以前试过示例、存下来的是旧版示例课：换成现在的示例（用户自己的课不动）

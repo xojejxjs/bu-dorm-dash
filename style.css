@@ -703,24 +703,38 @@ main {
     font-size: 11px;
   }
 
+  /* 手机上整个页面一起滚动：往上滑时，地图跟着移出屏幕，下面的内容占满整个屏幕，看得更清楚
+     （电脑上还是左右并排、各自滚动）*/
+  html, body {
+    height: auto;
+  }
+
   /* 左右并排 → 上下排列 */
   main {
+    flex: none;
     flex-direction: column;
   }
 
-  /* 地图放到最上面，固定占屏幕高度的 45% */
+  /* 地图放在最上面，占屏幕高度的 45%；往上滑就移出去 */
   #map {
     order: -1;
     flex: none;
     height: 45vh;
   }
 
-  /* 侧边栏占满宽度，占据剩下的高度，内容多了在里面滚动 */
+  /* 侧边栏占满宽度，不再自己单独滚动，跟着整个页面滚 */
   #sidebar {
     width: 100%;
-    flex: 1;
+    flex: none;
+    overflow: visible;
     border-right: none;
     border-top: 1px solid #ddd;
+  }
+
+  /* 标签栏贴在屏幕最上面：滑到哪里都能切换标签页
+     （前面加 #sidebar：后面通用的 .tabs 规则写在这个 @media 之后，不加的话会被它的 top: -16px 盖掉） */
+  #sidebar .tabs {
+    top: 0;
   }
 }
 
@@ -1423,4 +1437,47 @@ button.walk-row.selected {
   padding: 12px 16px;
   background: var(--tight-bg);
   font-size: 14px;
+}
+
+/* ===== 对比表下面：几份课表里相同的课（compare.js 的 renderCommonClasses） ===== */
+.compare-common h4 {
+  margin: 12px 0 4px;
+  font-size: 13px;
+}
+
+.common-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 13px;
+}
+
+.common-list li {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.common-code {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.common-in,
+.common-same,
+.common-diff {
+  display: block;
+}
+
+.common-in {
+  color: var(--muted);
+}
+
+/* 同一个时段（一起上课）：深蓝色，和"我的课"同色；不用绿色（绿色只表示"来得及"） */
+.common-same {
+  color: var(--mine);
+  font-weight: bold;
+}
+
+.common-diff {
+  color: var(--muted);
 }

@@ -1,10 +1,12 @@
-# SemesterMap
+# WalkMyWeek
 
-**Your semester on a map.** SemesterMap helps Boston University students:
+**Your week on a map.** WalkMyWeek helps Boston University students:
 
 1. **See where your classes are** — add your schedule and every building you go to shows up on the map.
 2. **Choose a dorm that fits your classes** — compare dorms by how long it actually takes to walk to the places you go every day.
 3. **Avoid classes too far apart** — check whether the gap between two classes is long enough to walk across campus.
+
+**Try it:** https://xojejxjs.github.io/walkmyweek/
 
 *An independent student project. Not affiliated with Boston University.*
 

@@ -167,6 +167,7 @@ function drawRouteLine(fromPlace, toPlace, verdict, path) {
   // 自动缩放，让整条线都在视野里；padding 留出边距：左右多留一些，起点、终点的标签放得下
   map.fitBounds(routeLine.getBounds(), { padding: [90, 60] });
   layoutClassLabels(); // 标签避开新的路线（地图移动结束后还会再摆一次）
+  bringMapIntoView();
 }
 
 // 把地图上的路线删掉（如果有的话）
@@ -250,7 +251,20 @@ function showRouteEnds(fromPlace, toPlace) {
 }
 
 // 同一栋楼（没有路线）：地图移到这栋楼
+// 手机上整个页面一起滚动：地图可能已经滑出屏幕了。地图上画了新东西（路线、选中的楼），就滑回去让用户看到
+function bringMapIntoView() {
+  if (!isPhoneLayout()) {
+    return;
+  }
+  const rect = map.getContainer().getBoundingClientRect();
+  if (rect.bottom < rect.height / 2) { // 地图一半以上已经在屏幕外面
+    // 直接跳过去，不用平滑滚动：平滑滚动会被紧接着的地图、标签更新打断，结果停在原地
+    window.scrollTo({ top: 0 });
+  }
+}
+
 function focusRouteEnds() {
+  bringMapIntoView();
   if (routeEndLayer.getLayers().length > 0) {
     map.fitBounds(routeEndLayer.getBounds(), { padding: [90, 90], maxZoom: 17 });
   }
@@ -453,6 +467,7 @@ function showClassMarkers(groups) {
 function selectClassPlace(place) {
   selectedClassPlaceId = place ? place.id : null;
   if (place) {
+    bringMapIntoView();
     highlightPlace(place);
     map.fitBounds(highlightLayer.getBounds(), { padding: [90, 90], maxZoom: 17 });
   } else {

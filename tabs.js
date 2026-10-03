@@ -12,8 +12,22 @@ function showTab(name) {
     document.getElementById('tab-' + tab).hidden = !selected;
     document.getElementById('tab-btn-' + tab).setAttribute('aria-selected', String(selected));
   });
-  // 换了标签页，左边从头开始看
-  document.getElementById('sidebar').scrollTop = 0;
+  // 换了标签页，从这一页的开头看
+  const sidebar = document.getElementById('sidebar');
+  if (isPhoneLayout()) {
+    // 手机上整个页面一起滚：已经滑过了标签栏的话，回到标签栏的位置（地图在上面，不用回到最顶上）
+    const top = sidebar.getBoundingClientRect().top + window.scrollY;
+    if (window.scrollY > top) {
+      window.scrollTo({ top: top });
+    }
+  } else {
+    sidebar.scrollTop = 0;
+  }
+}
+
+// 是不是手机的上下排列（和 style.css 里的 @media (max-width: 768px) 一致）
+function isPhoneLayout() {
+  return window.matchMedia('(max-width: 768px)').matches;
 }
 
 // 现在是哪个标签页

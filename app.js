@@ -30,6 +30,7 @@ async function loadShapes() {
 // 输入：一个 dorm 对象
 // 输出：网页上 #dorm-info 的内容被替换
 function showDormInfo(dorm) {
+  logEvent('dorm-open'); // 统计：看了一个宿舍的详情（不记是哪个）
   // 宿舍详情在 Find a dorm 标签页里（比如在 My week 里点了地图上的宿舍，要切过去才看得到）
   showTab('dorm');
 

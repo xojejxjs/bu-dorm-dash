@@ -8,7 +8,7 @@ sublicense or sell this software, its code, its design or the data it contains
 (including data.json, walk-times.json and shapes.json), in whole or in part,
 without prior written permission from the author.
 
-You may use the published website (SemesterMap) for your own personal use.
+You may use the published website (WalkMyWeek) for your own personal use.
 
 Third-party material keeps its own terms:
 - Map data, building outlines and address search: (c) OpenStreetMap
@@ -16,7 +16,7 @@ Third-party material keeps its own terms:
 - Walking routes: openrouteservice (HeiGIT), under its terms of use.
 - Dorm information summarises public pages of Boston University Housing.
 
-SemesterMap is an independent student project and is not affiliated with,
+WalkMyWeek is an independent student project and is not affiliated with,
 endorsed by or sponsored by Boston University.
 
-To ask for permission, open an issue at https://github.com/xojejxjs/semestermap
+To ask for permission, open an issue at https://github.com/xojejxjs/walkmyweek

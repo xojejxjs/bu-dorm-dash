@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 网站地图：告诉搜索引擎有哪些页面。在 Google Search Console 里提交这个文件的网址 -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://xojejxjs.github.io/semestermap/</loc>
+    <lastmod>2026-10-03</lastmod>
+  </url>
+</urlset>

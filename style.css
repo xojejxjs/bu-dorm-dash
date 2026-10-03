@@ -1416,3 +1416,11 @@ button.walk-row.selected {
   padding: 0;
   border: 0;
 }
+
+/* 没开 JavaScript 时的说明 */
+.noscript {
+  margin: 0;
+  padding: 12px 16px;
+  background: var(--tight-bg);
+  font-size: 14px;
+}

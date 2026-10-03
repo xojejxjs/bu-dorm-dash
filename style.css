@@ -1481,3 +1481,66 @@ button.walk-row.selected {
 .common-diff {
   color: var(--muted);
 }
+
+/* ===== 切换栏下面的两个工具：Compare plans / Shared classes（schedules.js） ===== */
+.schedule-tools {
+  display: flex;
+  gap: 8px;
+  margin: -4px 0 12px;
+}
+
+.tool-button {
+  flex: 1;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: white;
+  font: inherit;
+  font-size: 13px;
+  color: var(--action);
+  cursor: pointer;
+}
+
+/* 打开着的那一个：深色边 */
+.tool-button[aria-expanded="true"] {
+  border-color: var(--ink);
+  color: var(--ink);
+  font-weight: bold;
+}
+
+/* Shared classes：选"我"和"和谁比" */
+.shared-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+#sidebar .shared-row label,
+.shared-with-label {
+  display: inline;
+  margin: 0;
+  min-width: 34px;
+  font-size: 13px;
+  font-weight: bold;
+  color: var(--ink);
+}
+
+#sidebar .shared-row select {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+}
+
+.shared-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.shared-summary {
+  margin: 4px 0;
+  font-size: 13px;
+  font-weight: bold;
+}

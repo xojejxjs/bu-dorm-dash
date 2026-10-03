@@ -51,7 +51,7 @@
   <!-- Leaflet 的样式文件，必须引入，否则地图显示会错乱 -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-  <link rel="stylesheet" href="style.css?v=2026-10-03g" />
+  <link rel="stylesheet" href="style.css?v=2026-10-03h" />
 </head>
 <body>
   <noscript>
@@ -128,6 +128,12 @@
             <p class="sample-row" id="new-schedule-row" hidden>
               Planning another version, like a Plan B?
               <button type="button" class="small-button" id="new-schedule-button">+ Start a new schedule</button>
+            </p>
+
+            <!-- 找和朋友相同的课：新建一份朋友的课表 → 选她的课表文件 → 自动显示你们相同的课（schedules.js） -->
+            <p class="sample-row" id="friend-row" hidden>
+              Just met someone in your major?
+              <button type="button" class="small-button" id="friend-button">👥 Find classes you share</button>
             </p>
 
             <!-- 识别不准时的备用方式：直接粘贴课表文字 -->
@@ -235,21 +241,21 @@
 
   <!-- 我们自己的 JS，顺序很重要：被别人用的文件要先加载 -->
   <!-- ?v=版本号：每次更新网站时改这个号码，浏览器就会下载新文件，而不是继续用缓存里的旧文件 -->
-  <script>const APP_VERSION = '2026-10-03g';</script>
-  <script src="distance.js?v=2026-10-03g"></script>
-  <script src="geocode.js?v=2026-10-03g"></script>
-  <script src="route-api.js?v=2026-10-03g"></script>
-  <script src="schedule.js?v=2026-10-03g"></script>
-  <script src="schedule-import.js?v=2026-10-03g"></script>
-  <script src="course-guess.js?v=2026-10-03g"></script>
-  <script src="my-classes.js?v=2026-10-03g"></script>
-  <script src="my-week.js?v=2026-10-03g"></script>
-  <script src="schedules.js?v=2026-10-03g"></script>
-  <script src="compare.js?v=2026-10-03g"></script>
-  <script src="map.js?v=2026-10-03g"></script>
-  <script src="tabs.js?v=2026-10-03g"></script>
-  <script src="app.js?v=2026-10-03g"></script>
-  <script src="analytics.js?v=2026-10-03g"></script>
+  <script>const APP_VERSION = '2026-10-03h';</script>
+  <script src="distance.js?v=2026-10-03h"></script>
+  <script src="geocode.js?v=2026-10-03h"></script>
+  <script src="route-api.js?v=2026-10-03h"></script>
+  <script src="schedule.js?v=2026-10-03h"></script>
+  <script src="schedule-import.js?v=2026-10-03h"></script>
+  <script src="course-guess.js?v=2026-10-03h"></script>
+  <script src="my-classes.js?v=2026-10-03h"></script>
+  <script src="my-week.js?v=2026-10-03h"></script>
+  <script src="schedules.js?v=2026-10-03h"></script>
+  <script src="compare.js?v=2026-10-03h"></script>
+  <script src="map.js?v=2026-10-03h"></script>
+  <script src="tabs.js?v=2026-10-03h"></script>
+  <script src="app.js?v=2026-10-03h"></script>
+  <script src="analytics.js?v=2026-10-03h"></script>
 
   <!-- 访问统计（GoatCounter）：不用 cookie；只在线上网站统计，本地测试不算 -->
   <script data-goatcounter="https://xojejxjs.goatcounter.com/count"

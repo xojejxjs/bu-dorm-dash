@@ -60,73 +60,143 @@ function scheduleStats(items) {
   return stats;
 }
 
-// 几份课表里相同的课（比如刚认识的同专业同学：导入她的课表，看看你们是不是上同一门课、甚至同一个 section）
-// 输入：[{ schedule, items }]
-// 输出：[{ course, title, entries: [{ name, meetings }], together }]，按课号排好
-//   entries：这门课出现在哪几份课表里，每份课表里是哪几个时段
-//   together：所有这几份课表里时间完全一样的时段（同一个 section），没有就是空数组
-function commonClasses(columns) {
-  const byCourse = {};
-  columns.forEach(function (col) {
-    col.items.forEach(function (c) {
-      if (c.status === 'skipped' || !c.course) {
+// ===== 相同的课（Shared classes）：我和几个人（同学、室友）有哪些课是一样的 =====
+//
+// 以"我"为中心：只看我的课里，哪些在选中的人的课表里也有
+//   together：时间一模一样（同一个 section），可以一起上课
+//   different：同一门课，但时间不一样（列出对方的时间，方便约着换 section）
+
+// 输入：我的课、[{ schedule, items }]（选中的那几个人）
+// 输出：[{ course, title, meetings, togetherMeetings, together: [名字], different: [{ name, when }] }]
+//   一起上课的人最多的排最前面
+function sharedWithMe(baseItems, others) {
+  const groups = [];
+  baseItems.forEach(function (c) {
+    if (c.status === 'skipped' || !c.course) {
+      return;
+    }
+    const key = c.course.toUpperCase();
+    let group = groups.find(function (g) { return g.key === key; });
+    if (!group) {
+      group = { key: key, course: c.course, title: c.title, meetings: [], together: [], different: [], togetherMeetings: [] };
+      groups.push(group);
+    }
+    group.meetings.push(c);
+  });
+
+  groups.forEach(function (group) {
+    others.forEach(function (other) {
+      const theirs = other.items.filter(function (c) {
+        return c.status !== 'skipped' && c.course && c.course.toUpperCase() === group.key;
+      });
+      if (theirs.length === 0) {
         return;
       }
-      const key = c.course.toUpperCase();
-      if (!byCourse[key]) {
-        byCourse[key] = { course: c.course, title: c.title, entries: [] };
+      // 我的哪几个时段，对方也有一模一样的
+      const same = group.meetings.filter(function (m) {
+        return theirs.some(function (t) { return sameMeeting(m, t); });
+      });
+      if (same.length > 0) {
+        group.together.push(other.schedule.name);
+        same.forEach(function (m) {
+          if (!group.togetherMeetings.includes(m)) {
+            group.togetherMeetings.push(m);
+          }
+        });
+      } else {
+        group.different.push({ name: other.schedule.name, when: theirs.map(shortWhen).join('; ') });
       }
-      let entry = byCourse[key].entries.find(function (e) { return e.schedule === col.schedule; });
-      if (!entry) {
-        entry = { schedule: col.schedule, name: col.schedule.name, meetings: [] };
-        byCourse[key].entries.push(entry);
-      }
-      entry.meetings.push(c);
     });
   });
 
-  return Object.keys(byCourse).sort().map(function (key) {
-    return byCourse[key];
-  }).filter(function (group) {
-    return group.entries.length >= 2; // 至少两份课表里都有，才算"相同的课"
-  }).map(function (group) {
-    // 第一份课表里的时段，在其他每一份里都找得到一模一样的（同一个 section、同一个时间）
-    const others = group.entries.slice(1);
-    group.together = group.entries[0].meetings.filter(function (m) {
-      return others.every(function (e) {
-        return e.meetings.some(function (o) { return sameMeeting(m, o); });
-      });
-    });
-    return group;
+  return groups.filter(function (g) {
+    return g.together.length + g.different.length > 0;
+  }).sort(function (a, b) {
+    return b.together.length - a.together.length ||
+      (b.together.length + b.different.length) - (a.together.length + a.different.length) ||
+      a.course.localeCompare(b.course);
   });
 }
 
-// "相同的课"那一块的 HTML
-function renderCommonClasses(columns) {
-  const groups = commonClasses(columns);
-  let html = '<div class="compare-common"><h4>Classes in common</h4>';
-  if (groups.length === 0) {
-    html += '<p class="hint">No classes in common.</p>';
-  } else {
-    html += '<ul class="common-list">';
-    groups.forEach(function (group) {
-      const names = group.entries.map(function (e) { return escapeHtml(e.name); }).join(', ');
-      let detail;
-      if (group.together.length > 0) {
-        // 同一个时段：一起上课
-        const when = group.together.map(function (m) {
-          return escapeHtml(shortWhen(m) + (m.place ? ' · ' + classWhere(m) : ''));
-        }).join('; ');
-        detail = `<span class="common-same">✓ Same time: ${when}</span>`;
-      } else {
-        detail = '<span class="common-diff">Same course, different times</span>';
-      }
-      html += `<li><strong>${escapeHtml(group.title)}</strong> <span class="common-code">${escapeHtml(group.course)}</span>
-        <span class="common-in">In: ${names}</span>${detail}</li>`;
-    });
-    html += '</ul>';
+// 每份课表的课：当前这一份以 myClasses.items 为准
+function scheduleItems(schedule) {
+  return schedule.id === myClasses.activeId ? myClasses.items : schedule.items;
+}
+
+// 打开 Shared classes 时默认选谁：标成"朋友"的课表；一个朋友都没有，就选其他所有课表
+function defaultSharedWith(baseId) {
+  const others = myClasses.schedules.filter(function (s) { return s.id !== baseId; });
+  const friends = others.filter(function (s) { return s.kind === 'friend'; });
+  return new Set((friends.length > 0 ? friends : others).map(function (s) { return s.id; }));
+}
+
+// Shared classes 面板的 HTML
+function renderSharedPanel() {
+  const schedules = myClasses.schedules;
+  // "我"是哪一份：默认是当前这一份；如果当前这一份是朋友的，就用第一份不是朋友的
+  let baseId = myClasses.sharedBase;
+  if (!schedules.some(function (s) { return s.id === baseId; })) {
+    const mine = schedules.find(function (s) { return s.kind !== 'friend'; }) || schedules[0];
+    baseId = mine.id;
+    myClasses.sharedBase = baseId;
   }
-  return html + '</div>';
+  if (!myClasses.sharedWith) {
+    myClasses.sharedWith = defaultSharedWith(baseId);
+  }
+  myClasses.sharedWith.delete(baseId); // 不能和自己比
+  const base = schedules.find(function (s) { return s.id === baseId; });
+  const others = schedules.filter(function (s) { return s.id !== baseId; });
+  const selected = others.filter(function (s) { return myClasses.sharedWith.has(s.id); });
+
+  let html = '<div class="compare-box shared-box">';
+  // 选"我"
+  html += '<div class="shared-row"><label for="shared-base">Me</label><select id="shared-base">';
+  schedules.forEach(function (s) {
+    html += `<option value="${s.id}" ${s.id === baseId ? 'selected' : ''}>${escapeHtml(s.name)}</option>`;
+  });
+  html += '</select></div>';
+  // 选"和谁比"：可以多选
+  html += '<div class="shared-row"><span class="shared-with-label">With</span><div class="shared-chips">';
+  others.forEach(function (s) {
+    const on = myClasses.sharedWith.has(s.id);
+    html += `<button type="button" class="schedule-chip" data-with="${s.id}" aria-pressed="${on}">${on ? '✓ ' : ''}${escapeHtml(s.name)}</button>`;
+  });
+  html += '</div></div>';
+
+  if (selected.length === 0) {
+    html += '<p class="hint">Pick at least one person above.</p>';
+  } else {
+    const groups = sharedWithMe(scheduleItems(base), selected.map(function (s) { return { schedule: s, items: scheduleItems(s) }; }));
+    if (groups.length === 0) {
+      html += '<p class="hint shared-summary">No classes in common.</p>';
+    } else {
+      const together = groups.filter(function (g) { return g.together.length > 0; }).length;
+      html += `<p class="shared-summary">${groups.length} of your classes ${groups.length === 1 ? 'is' : 'are'} shared` +
+        (together > 0 ? ` · ${together} with someone in the same section` : '') + '</p>';
+      html += '<ul class="common-list">';
+      groups.forEach(function (g) {
+        // 有人一起上：写一起上的那个时段；没有：写我的所有时段
+        const meetings = g.togetherMeetings.length > 0 ? g.togetherMeetings : g.meetings;
+        const when = meetings.map(function (m) {
+          return shortWhen(m) + (m.place ? ' · ' + classWhere(m) : '');
+        }).join('; ');
+        html += `<li><strong>${escapeHtml(g.title)}</strong> <span class="common-code">${escapeHtml(g.course)}</span>
+          <span class="common-in">${escapeHtml(when)}</span>`;
+        if (g.together.length > 0) {
+          html += `<span class="common-same">✓ Together: ${escapeHtml(g.together.join(', '))}</span>`;
+        }
+        if (g.different.length > 0) {
+          const list = g.different.map(function (d) { return `${d.name} (${d.when})`; }).join(', ');
+          html += `<span class="common-diff">Different time: ${escapeHtml(list)}</span>`;
+        }
+        html += '</li>';
+      });
+      html += '</ul>';
+    }
+  }
+  html += `<p class="hint compare-note">Friends' schedules stay in your browser, like yours.</p>
+    <button type="button" class="link-button" data-action="close-tool">Close</button></div>`;
+  return html;
 }
 
 // 一格里显示的文字
@@ -142,12 +212,17 @@ function compareCellText(key, stats) {
 
 // ===== 显示 =====
 
-// 对比表（renderMyClasses() 每次都会调用它）
+// 切换栏下面的两个工具：Compare plans（对比表）或 Shared classes（相同的课），一次只开一个
+// renderMyClasses() 每次都会调用它
 function renderCompare() {
   const box = document.getElementById('schedule-compare');
-  if (!myClasses.compareOpen || myClasses.schedules.length < 2) {
-    myClasses.compareOpen = false;
+  if (!myClasses.toolOpen || myClasses.schedules.length < 2) {
+    myClasses.toolOpen = null;
     box.innerHTML = '';
+    return;
+  }
+  if (myClasses.toolOpen === 'shared') {
+    box.innerHTML = renderSharedPanel();
     return;
   }
 
@@ -187,13 +262,10 @@ function renderCompare() {
     });
     html += '</tr>';
   });
-  html += '</tbody></table></div>';
-  html += renderCommonClasses(columns);
-  html += `
+  html += `</tbody></table></div>
     <p class="hint compare-note">Walking / week adds up every walk between back-to-back classes, including long breaks.
-      Tap a name to switch to that schedule.
-      Tip: save a friend's calendar file as a new schedule to see the classes you share. It stays in your browser.</p>
-    <button type="button" class="link-button" data-action="close-compare">Close</button></div>`;
+      Tap a name to switch to that schedule.</p>
+    <button type="button" class="link-button" data-action="close-tool">Close</button></div>`;
   box.innerHTML = html;
 }
 
@@ -205,10 +277,30 @@ function initCompare() {
       switchSchedule(Number(name.dataset.schedule));
       return;
     }
-    if (event.target.closest('[data-action="close-compare"]')) {
-      myClasses.compareOpen = false;
+    // Shared classes：点一个人，勾上 / 取消
+    const chip = event.target.closest('button[data-with]');
+    if (chip) {
+      const id = Number(chip.dataset.with);
+      if (myClasses.sharedWith.has(id)) {
+        myClasses.sharedWith.delete(id);
+      } else {
+        myClasses.sharedWith.add(id);
+      }
+      renderCompare();
+      return;
+    }
+    if (event.target.closest('[data-action="close-tool"]')) {
+      myClasses.toolOpen = null;
       renderCompare();
       renderScheduleSwitcher();
+    }
+  });
+  // Shared classes：换了"我"是哪一份
+  document.getElementById('schedule-compare').addEventListener('change', function (event) {
+    if (event.target.id === 'shared-base') {
+      myClasses.sharedBase = Number(event.target.value);
+      myClasses.sharedWith = defaultSharedWith(myClasses.sharedBase);
+      renderCompare();
     }
   });
 }

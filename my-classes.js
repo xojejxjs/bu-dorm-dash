@@ -188,7 +188,7 @@ function saveMyClasses() {
         version: 2,
         activeId: myClasses.activeId,
         schedules: myClasses.schedules.map(function (schedule) {
-          return { id: schedule.id, name: schedule.name, items: schedule.items.map(classToSaved) };
+          return { id: schedule.id, name: schedule.name, kind: schedule.kind || null, items: schedule.items.map(classToSaved) };
         })
       }));
     }
@@ -212,7 +212,11 @@ function loadSavedSchedules(placeIndex) {
     };
     if (Array.isArray(saved.schedules) && saved.schedules.length > 0) {
       const schedules = saved.schedules.map(function (schedule, i) {
-        return { id: Number(schedule.id) || i + 1, name: String(schedule.name || 'My schedule'), items: toClasses(schedule.items) };
+        const restored = { id: Number(schedule.id) || i + 1, name: String(schedule.name || 'My schedule'), items: toClasses(schedule.items) };
+        if (schedule.kind === 'friend') {
+          restored.kind = 'friend'; // 朋友的课表（Shared classes 默认选它）
+        }
+        return restored;
       });
       const active = schedules.find(function (schedule) { return schedule.id === saved.activeId; }) || schedules[0];
       return { schedules: schedules, activeId: active.id };
@@ -1199,6 +1203,8 @@ async function handleScheduleFiles(files) {
     const source = files.length === 1 ? `"${files[0].name}"` : `${files.length} files`;
     offerImport(results, source);
   }
+  // 如果是从 "Find classes you share" 来的：换回自己的课表，打开 Shared classes（schedules.js）
+  finishFindShared();
 }
 
 // ===== 导入时：加进当前这份课表，还是另存一份 =====

@@ -43,6 +43,7 @@ function trackEvent(name) {
 //         import-empty（一门都没读出来）、import-error（读不了）
 //         import-all-already（全都已经有了）、import-choice-add / -new / -cancel（选了加进哪一份）
 //   课表：schedule-new、schedule-switch、schedule-delete、schedule-move、compare-open
+//   相同的课：shared-start（点了 Find classes you share）、shared-open（打开了 Shared classes）
 //   看课：class-expand（列表里点开一门课）、map-building（地图上点了上课的楼）、walk-route（点了一段课间步行）
 //   其他：try-sample、tab-week / tab-dorm / tab-route、route-check、dorm-open、dorm-ranking、feedback-click
 
@@ -59,7 +60,7 @@ function initFeedbackLink() {
 // 用"事件委托"在整个页面上监听：不用改其他文件，统计的代码都集中在这里
 function initEventTracking() {
   document.addEventListener('click', function (event) {
-    const target = event.target.closest('#sample-button, #feedback-link, #schedule-text-button, #new-schedule-button, ' +
+    const target = event.target.closest('#sample-button, #feedback-link, #schedule-text-button, #new-schedule-button, #friend-button, ' +
       '[data-walk], .tabs [data-tab], [data-action]');
     if (!target) {
       return;
@@ -79,12 +80,16 @@ function initEventTracking() {
       trackEvent('import-text');
     } else if (target.id === 'new-schedule-button') {
       trackEvent('schedule-new');
+    } else if (target.id === 'friend-button') {
+      trackEvent('shared-start'); // 点了"找和朋友相同的课"
     } else if (target.dataset.tab) {
       trackEvent('tab-' + target.dataset.tab); // 只记点了哪个标签页
     } else if (target.dataset.walk !== undefined) {
       trackEvent('walk-route'); // 点了"课间步行"的某一行；只记这件事，不记是哪两门课
     } else if (target.dataset.action === 'toggle-compare' && target.getAttribute('aria-expanded') === 'false') {
       trackEvent('compare-open'); // 只算"打开"，不算"收起"
+    } else if (target.dataset.action === 'toggle-shared' && target.getAttribute('aria-expanded') === 'false') {
+      trackEvent('shared-open'); // 打开了 Shared classes
     } else if (target.dataset.action === 'toggle' && target.getAttribute('aria-expanded') === 'false') {
       trackEvent('class-expand'); // 只算"展开"，不算"收起"
     } else if (actions[target.dataset.action]) {
